@@ -56,7 +56,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> record(Question q, String answer, {String attemptType = 'practice'}) async {
-    await db.saveAttempt(questionId: q.id, topicId: q.topicId, correct: answer == q.answer, attemptType: attemptType);
+    await db.saveAttempt(questionId: q.id, topicId: q.topicId, correct: answer == q.answer, attemptType: attemptType, selectedAnswer: answer, difficulty: q.difficulty);
     await refreshMastery();
     notifyListeners();
   }
