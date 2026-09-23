@@ -12,13 +12,17 @@ class AppDatabase {
     final root = await getDatabasesPath();
     _db = await openDatabase(
       join(root, 'offline_ai_school.db'),
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await _createSchema(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
           await db.execute('ALTER TABLE learners ADD COLUMN goals TEXT NOT NULL DEFAULT ""');
+        }
+        if (oldVersion < 3) {
+          await db.execute('ALTER TABLE learners ADD COLUMN learner_id TEXT');
+          await db.execute('ALTER TABLE attempts ADD COLUMN attempt_type TEXT NOT NULL DEFAULT "practice"');
         }
       },
     );
@@ -29,6 +33,7 @@ class AppDatabase {
     await db.execute('''
       CREATE TABLE learners (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        learner_id TEXT NOT NULL UNIQUE,
         name TEXT NOT NULL,
         grade TEXT NOT NULL,
         language TEXT NOT NULL,
@@ -42,6 +47,7 @@ class AppDatabase {
         topic_id TEXT NOT NULL,
         correct INTEGER NOT NULL,
         timestamp TEXT NOT NULL,
+        attempt_type TEXT NOT NULL DEFAULT "practice",
         synced INTEGER NOT NULL DEFAULT 0
       )
     ''');
@@ -55,7 +61,10 @@ class AppDatabase {
   }) async {
     final db = await database;
     final existing = await db.query('learners', orderBy: 'id DESC', limit: 1);
+    final existingId = existing.isNotEmpty ? (existing.first['learner_id'] as String?) : null;
+    final learnerId = existingId ?? 'learner_${DateTime.now().microsecondsSinceEpoch}';
     final values = {
+      'learner_id': learnerId,
       'name': name,
       'grade': grade,
       'language': language,
@@ -79,6 +88,7 @@ class AppDatabase {
     required String questionId,
     required String topicId,
     required bool correct,
+    String attemptType = 'practice',
   }) async {
     final db = await database;
     await db.insert('attempts', {
@@ -86,13 +96,19 @@ class AppDatabase {
       'topic_id': topicId,
       'correct': correct ? 1 : 0,
       'timestamp': DateTime.now().toIso8601String(),
+      'attempt_type': attemptType,
       'synced': 0,
     });
   }
 
   Future<List<Map<String, Object?>>> attemptsForTopic(String topicId) async {
     final db = await database;
-    return db.query('attempts', where: 'topic_id = ?', whereArgs: [topicId], orderBy: 'timestamp ASC');
+    return db.query('attempts', where: 'topic_id = ? AND attempt_type = ?', whereArgs: [topicId, 'practice'], orderBy: 'timestamp ASC');
+  }
+
+  Future<String> learnerId() async {
+    final row = await learner();
+    return row?['learner_id'] as String? ?? 'learner_${DateTime.now().microsecondsSinceEpoch}';
   }
 
   Future<List<Map<String, Object?>>> pendingAttempts() async {
