@@ -277,7 +277,7 @@ class HomeScreen extends StatelessWidget {
         onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const LabScreen()))),
       _Tool(title:'My Progress',subtitle:'Mastery and next recommendation',icon:Icons.insights_rounded,
         onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ProgressScreen(state:state)))),
-      _Tool(title:'Teacher Dashboard',subtitle:'Real learner learning signals',icon:Icons.school_rounded,
+      if (state.auth.user?.role == 'teacher' || state.auth.user?.role == 'admin') _Tool(title:'Teacher Dashboard',subtitle:'School learning overview',icon:Icons.school_rounded,
         onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>TeacherScreen(state:state)))),
     ]),
   );
