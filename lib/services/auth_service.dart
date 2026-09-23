@@ -77,6 +77,7 @@ class AuthService {
   }
 
   Future<void> login(String username, String password) async {
+    if (!isConfigured) throw StateError('This build has no sync server configured.');
     final response = await _client.post(
       Uri.parse('$baseUrl/v1/auth/login'),
       headers: const {'Content-Type': 'application/json'},
@@ -92,6 +93,7 @@ class AuthService {
     required String grade,
     String? schoolCode,
   }) async {
+    if (!isConfigured) throw StateError('This build has no sync server configured.');
     final response = await _client.post(
       Uri.parse('$baseUrl/v1/auth/register'),
       headers: const {'Content-Type': 'application/json'},
@@ -163,17 +165,11 @@ class AuthService {
   }
 
   Future<http.Response> _authorizedGet(String path) async {
-    final token = _accessToken;
-    if (token == null) {
-      if (_refreshToken == null) {
-        return http.Response('', 401);
-      }
-      await _refresh();
-    }
-
+    final token = await accessToken();
+    if (token == null) return http.Response('', 401);
     return _client.get(
       Uri.parse('$baseUrl$path'),
-      headers: {'Authorization': 'Bearer $_accessToken'},
+      headers: {'Authorization': 'Bearer $token'},
     );
   }
 
