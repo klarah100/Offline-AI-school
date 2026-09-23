@@ -6,6 +6,7 @@ import 'services/ai_tutor.dart';
 import 'services/connectivity_service.dart';
 import 'services/database.dart';
 import 'services/sync_service.dart';
+import 'services/mastery_engine.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +17,7 @@ class AppState extends ChangeNotifier {
   AppState(this.db);
   final AppDatabase db;
   final AdaptiveEngine adaptive = const AdaptiveEngine();
+  final MasteryEngine masteryEngine = const MasteryEngine();
   final AiTutor tutor = const OfflineAiTutor();
   String learnerName = 'Learner';
   String grade = 'Grade 6';
@@ -48,9 +50,9 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> refreshMastery() async {
-    final rows = await db.attemptsForTopic('fractions');
-    final correct = rows.where((r) => r['correct'] == 1).length;
-    mastery = TopicMastery(topicId: 'fractions', correct: correct, attempted: rows.length);
+    final learnerId = await db.learnerId();
+    final rows = await db.attemptsForTopic('fractions', learnerId: learnerId);
+    mastery = masteryEngine.fromAttempts('fractions', rows);
   }
 
   Future<void> record(Question q, String answer, {String attemptType = 'practice'}) async {
