@@ -8,7 +8,7 @@ class AdaptiveEngine {
       return 'Start with a short lesson, then try five practice questions.';
     }
     if (mastery.attempted < 3) {
-      return 'Keep practising so OfflineAI can build a reliable picture of your understanding.';
+      return 'Keep practising so OfflineAI can build more evidence of your understanding.';
     }
     if (mastery.score < .4) {
       return 'Review the concept with a worked example, then retry an easier practice set.';
