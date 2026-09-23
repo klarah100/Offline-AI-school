@@ -83,10 +83,9 @@ void main() {
       database: AppDatabase.instance,
       connectivity: FakeConnection(true),
       retryDelay: Duration.zero,
-      maxRetries: 1,
       sender: (_) async => throw StateError('network failure'),
     );
-    expect(() => service.syncPending(), throwsA(isA<SyncException>()));
+    expect(() => service.syncPending(maxRetries: 1), throwsA(isA<SyncException>()));
     expect(await AppDatabase.instance.pendingCount(), 1);
   });
 }
