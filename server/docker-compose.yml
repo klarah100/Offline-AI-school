@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: offlineai
+      POSTGRES_USER: offlineai
+      POSTGRES_PASSWORD: change-me
+    ports:
+      - "5432:5432"
+    volumes:
+      - offlineai-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U offlineai -d offlineai"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  offlineai-postgres:
