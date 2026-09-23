@@ -119,6 +119,7 @@ CREATE INDEX IF NOT EXISTS idx_attempts_learner_type ON attempts(learner_id, att
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_schools_org ON schools(organization_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_org_status ON subscriptions(organization_id, status);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_plan_code ON subscriptions(plan_code);
 CREATE INDEX IF NOT EXISTS idx_licenses_org_status ON organization_licenses(organization_id, status);
 CREATE INDEX IF NOT EXISTS idx_billing_events_org_time ON billing_events(organization_id, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user_time ON audit_logs(user_id, created_at);
@@ -129,7 +130,7 @@ BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$ LANGUAGE plpgsql SET search_path = public, pg_catalog;
 
 DROP TRIGGER IF EXISTS users_touch_updated_at ON users;
 CREATE TRIGGER users_touch_updated_at
