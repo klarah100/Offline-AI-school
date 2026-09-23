@@ -255,7 +255,7 @@ const SizedBox(height:20),Text('Mass: ${mass.round()} g'),Slider(value:mass,min:
 Text('Volume: ${volume.round()} cm³'),Slider(value:volume,min:50,max:500,divisions:45,onChanged:(v)=>setState(()=>volume=v)),
 _Info(title:'Calculated density',body:'${density.toStringAsFixed(2)} g/cm³\nDensity = mass ÷ volume',icon:Icons.science_rounded),
 const SizedBox(height:18),const Text('Prediction: if mass stays constant and volume increases, what happens to density?')
-]);}}
+]));}}
 
 class TeacherScreen extends StatelessWidget{const TeacherScreen({super.key});@override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Teacher Dashboard')),body:ListView(padding:const EdgeInsets.all(22),children:[
 const Text('Class learning signals',style:TextStyle(fontSize:29,fontWeight:FontWeight.w800)),const SizedBox(height:8),
