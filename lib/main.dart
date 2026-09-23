@@ -430,10 +430,10 @@ class ResultScreen extends StatelessWidget {
     ),
   );
 }
-class TutorScreen extends StatefulWidget{const TutorScreen({super.key,required this.state});final AppState state;@override State<TutorScreen>createState()=>_TutorScreenState();}
+class TutorScreen extends StatefulWidget{const TutorScreen({super.key,required this.state,this.topicId});final AppState state;final String? topicId;@override State<TutorScreen>createState()=>_TutorScreenState();}
 class _TutorScreenState extends State<TutorScreen>{final c=TextEditingController(text:'Explain fractions to me');String answer='';
 @override void dispose(){c.dispose();super.dispose();}
-Future<void> ask()async{final a=await widget.state.tutor.explain(c.text);if(mounted)setState(()=>answer=a);}
+Future<void> ask()async{final a=await widget.state.tutor.explain(c.text,topicId:widget.topicId);if(mounted)setState(()=>answer=a);}
 @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Ask OfflineAI')),body:ListView(padding:const EdgeInsets.all(22),children:[
 const _Pill(text:'Offline tutor mode'),const SizedBox(height:18),const Text('Ask a question',style:TextStyle(fontSize:29,fontWeight:FontWeight.w800)),
 const SizedBox(height:8),const Text('This MVP tutor answers from locally stored learning knowledge.'),const SizedBox(height:18),
