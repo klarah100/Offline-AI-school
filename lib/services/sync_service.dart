@@ -79,7 +79,7 @@ class SyncService {
             ? error
             : SyncException('Sync failed: $error');
         lastError = syncError;
-        if (!syncError.retryable || attempt == maxRetries - 1) rethrow;
+        if (!syncError.retryable || attempt == maxRetries - 1) throw syncError;
         await Future<void>.delayed(retryDelay * (1 << attempt));
         if (!await connectivity.isOnline()) break;
       }
