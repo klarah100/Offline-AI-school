@@ -707,6 +707,9 @@ class _AccountScreenState extends State<AccountScreen> {
     if (confirmed != true) return;
     try {
       await widget.state.auth.deleteMyData();
+      await widget.state.db.deleteLocalData();
+      widget.state.learnerName = 'Learner';
+      await widget.state.refreshMastery();
       if (mounted) setState(() {});
     } catch (e) {
       if (mounted) setState(() => error = e.toString().replaceFirst('Bad state: ', ''));
