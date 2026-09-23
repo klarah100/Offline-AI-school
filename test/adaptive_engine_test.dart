@@ -24,3 +24,16 @@ void main() {
     expect(selected.length, 3);
   });
 }
+
+
+  test('high accuracy with weak evidence does not force hard progression', () {
+    final mastery = TopicMastery(
+      topicId: 'fractions',
+      correct: 2,
+      attempted: 2,
+      weightedScore: 1,
+      confidence: .4,
+    );
+    expect(engine.nextDifficulty(mastery), 2);
+    expect(engine.recommend(mastery), contains('evidence'));
+  });
