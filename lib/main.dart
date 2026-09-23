@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'data/content.dart';
+import 'data/diagnostic.dart';
 import 'services/adaptive_engine.dart';
 import 'services/ai_tutor.dart';
 import 'services/connectivity_service.dart';
@@ -142,7 +143,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           onPressed:() async {
             await widget.state.saveProfile(name.text, grade, language, goals.toList());
             if (!context.mounted) return;
-            Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>HomeScreen(state:widget.state)),(_)=>false);
+            Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>DiagnosticScreen(state:widget.state)),(_)=>false);
           },
           child: const Padding(padding: EdgeInsets.all(13),child:Text('Continue'))),
       ]),
@@ -150,6 +151,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
+class DiagnosticScreen extends StatefulWidget {
+  const DiagnosticScreen({super.key, required this.state});
+  final AppState state;
+  @override State<DiagnosticScreen> createState() => _DiagnosticScreenState();
+}
+class _DiagnosticScreenState extends State<DiagnosticScreen> {
+  int index = 0, correct = 0; String? selected;
+  Question get q => diagnosticQuestions[index];
+  Future<void> submit() async {
+    if (selected == null) return;
+    if (selected == q.answer) correct++;
+    await widget.state.record(q, selected!);
+    if (!mounted) return;
+    if (index == diagnosticQuestions.length - 1) {
+      await widget.state.refreshMastery();
+      if (!mounted) return;
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => DiagnosticResultScreen(state: widget.state, correct: correct)));
+    } else { setState(() { index++; selected = null; }); }
+  }
+  @override Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text('Diagnostic ${index + 1}/${diagnosticQuestions.length}')),
+    body: ListView(padding: const EdgeInsets.all(22), children: [
+      const Text('Let’s find your starting point', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 8),
+      const Text('This short assessment helps OfflineAI School personalize your first learning path.'),
+      const SizedBox(height: 22),
+      LinearProgressIndicator(value: (index + 1) / diagnosticQuestions.length),
+      const SizedBox(height: 28),
+      Text(q.prompt, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 18),
+      ...q.options.map((o) => Padding(padding: const EdgeInsets.only(bottom: 10), child: OutlinedButton(
+        onPressed: () => setState(() => selected = o),
+        style: OutlinedButton.styleFrom(alignment: Alignment.centerLeft, padding: const EdgeInsets.all(18)),
+        child: Text(o)))),
+      FilledButton(onPressed: selected == null ? null : submit, child: Text(index == diagnosticQuestions.length - 1 ? 'Finish diagnostic' : 'Next')),
+    ]));
+}
+class DiagnosticResultScreen extends StatelessWidget {
+  const DiagnosticResultScreen({super.key, required this.state, required this.correct});
+  final AppState state; final int correct;
+  @override Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Your starting point')),
+    body: ListView(padding: const EdgeInsets.all(24), children: [
+      const Icon(Icons.auto_awesome_rounded, size: 64), const SizedBox(height: 16),
+      Text('${correct}/${diagnosticQuestions.length} diagnostic questions correct', textAlign: TextAlign.center, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 12),
+      const Text('We’ll use this baseline to recommend what to practise next.', textAlign: TextAlign.center),
+      const SizedBox(height: 24),
+      FilledButton(onPressed: () => Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => HomeScreen(state: state)), (_) => false), child: const Text('Start learning')),
+    ]));
+}
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key, required this.state}); final AppState state;
   @override Widget build(BuildContext context) => Scaffold(
