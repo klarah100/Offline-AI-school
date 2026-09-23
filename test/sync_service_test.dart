@@ -7,17 +7,29 @@ import '../lib/services/connectivity_service.dart';
 class FakeConnection implements ConnectionStatus {
   FakeConnection(this.online);
   final bool online;
-  @override Future<bool> isOnline() async => online;
+  @override
+  Future<bool> isOnline() async => online;
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(() { sqfliteFfiInit(); databaseFactory = databaseFactoryFfi; });
+  setUpAll(() {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  });
 
   setUp(() async {
     await AppDatabase.instance.clearForTests();
-    await AppDatabase.instance.saveLearner(name: 'Test Learner', grade: 'Grade 6', language: 'English');
-    await AppDatabase.instance.saveAttempt(questionId: 'q1', topicId: 'fractions', correct: true);
+    await AppDatabase.instance.saveLearner(
+      name: 'Test Learner',
+      grade: 'Grade 6',
+      language: 'English',
+    );
+    await AppDatabase.instance.saveAttempt(
+      questionId: 'q1',
+      topicId: 'fractions',
+      correct: true,
+    );
   });
 
   tearDown(() async => AppDatabase.instance.clearForTests());
@@ -44,17 +56,37 @@ void main() {
     expect(await service.syncPending(), 1);
     expect(payload!.single['learner_id'], isNotNull);
     expect(payload!.single['client_id'], isNotNull);
+    expect(payload!.single['difficulty'], 1);
     expect(await AppDatabase.instance.pendingCount(), 0);
   });
 
-  test('transient sync failure retries before succeeding', () async {\n    var calls = 0;\n    final service = SyncService(\n      database: AppDatabase.instance,\n      connectivity: FakeConnection(true),\n      retryDelay: Duration.zero,\n      sender: (_) async {\n        calls++;\n        if (calls == 1) throw const SyncException('temporary failure');\n      },\n    );\n    expect(await service.syncPending(), 1);\n    expect(calls, 2);\n    expect(await AppDatabase.instance.pendingCount(), 0);\n  });\n\n  test('failed sync never marks attempts synced', () async {
+  test('transient sync failure retries before succeeding', () async {
+    var calls = 0;
     final service = SyncService(
       database: AppDatabase.instance,
       connectivity: FakeConnection(true),
+      retryDelay: Duration.zero,
+      sender: (_) async {
+        calls++;
+        if (calls == 1) {
+          throw const SyncException('temporary failure');
+        }
+      },
+    );
+    expect(await service.syncPending(), 1);
+    expect(calls, 2);
+    expect(await AppDatabase.instance.pendingCount(), 0);
+  });
+
+  test('failed sync never marks attempts synced', () async {
+    final service = SyncService(
+      database: AppDatabase.instance,
+      connectivity: FakeConnection(true),
+      retryDelay: Duration.zero,
+      maxRetries: 1,
       sender: (_) async => throw StateError('network failure'),
     );
-    expect(() => service.syncPending(), throwsStateError);
-    await Future<void>.delayed(Duration.zero);
+    expect(() => service.syncPending(), throwsA(isA<SyncException>()));
     expect(await AppDatabase.instance.pendingCount(), 1);
   });
 }
