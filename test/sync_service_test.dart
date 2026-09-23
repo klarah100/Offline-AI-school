@@ -47,7 +47,7 @@ void main() {
     expect(await AppDatabase.instance.pendingCount(), 0);
   });
 
-  test('failed sync never marks attempts synced', () async {
+  test('transient sync failure retries before succeeding', () async {\n    var calls = 0;\n    final service = SyncService(\n      database: AppDatabase.instance,\n      connectivity: FakeConnection(true),\n      retryDelay: Duration.zero,\n      sender: (_) async {\n        calls++;\n        if (calls == 1) throw const SyncException('temporary failure');\n      },\n    );\n    expect(await service.syncPending(), 1);\n    expect(calls, 2);\n    expect(await AppDatabase.instance.pendingCount(), 0);\n  });\n\n  test('failed sync never marks attempts synced', () async {
     final service = SyncService(
       database: AppDatabase.instance,
       connectivity: FakeConnection(true),
