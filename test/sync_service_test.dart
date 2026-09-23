@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../lib/services/database.dart';
 import '../lib/services/sync_service.dart';
+import '../lib/services/connectivity_service.dart';
 
 class FakeConnection implements ConnectionStatus {
   FakeConnection(this.online);
