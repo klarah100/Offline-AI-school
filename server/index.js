@@ -52,9 +52,22 @@ const createUserSchema = z.object({
   password: z.string().min(10).max(200),
   displayName: z.string().trim().min(1).max(120),
   role: z.enum(['learner', 'teacher']),
-  schoolId: z.string().uuid(),
+  schoolId: z.string().min(1).max(120),
   grade: z.string().trim().max(50).optional(),
   learnerId: z.string().trim().min(8).max(120).optional(),
+});
+
+const activateSubscriptionSchema = z.object({
+  planCode: z.string().trim().min(1).max(80),
+  periodEnd: z.string().datetime({ offset: true }).optional(),
+  externalCustomerId: z.string().trim().max(200).optional(),
+  externalSubscriptionId: z.string().trim().max(200).optional(),
+});
+
+const licenseSchema = z.object({
+  quantity: z.number().int().min(1).max(100000),
+  startsAt: z.string().datetime({ offset: true }).optional(),
+  endsAt: z.string().datetime({ offset: true }).optional(),
 });
 
 function publicUser(row) {
@@ -66,6 +79,7 @@ function publicUser(row) {
     schoolId: row.school_id,
     learnerId: row.learner_id,
     grade: row.grade,
+    organizationId: row.organization_id,
   };
 }
 
@@ -87,6 +101,7 @@ function createTokens(user, secrets) {
       role: user.role,
       schoolId: user.school_id || null,
       learnerId: user.learner_id || null,
+      organizationId: user.organization_id || null,
     },
     secrets.access,
     { expiresIn: ACCESS_TTL, issuer: ISSUER, audience: AUDIENCE },
@@ -211,7 +226,7 @@ function createApp({ pool, config = configFromEnv() }) {
 
       let schoolId = null;
       if (input.schoolCode) {
-        const school = await pool.query('SELECT id FROM schools WHERE code = $1', [input.schoolCode]);
+        const school = await pool.query('SELECT id, organization_id FROM schools WHERE code = $1', [input.schoolCode]);
         if (school.rowCount === 0) return res.status(400).json({ error: 'unknown_school' });
         schoolId = school.rows[0].id;
       }
@@ -222,15 +237,16 @@ function createApp({ pool, config = configFromEnv() }) {
         display_name: input.displayName,
         role: 'learner',
         school_id: schoolId,
+        organization_id: organizationId,
         learner_id: `learner_${randomUUID().replaceAll('-', '')}`,
         grade: input.grade,
       };
 
       const passwordHash = await bcrypt.hash(input.password, 12);
       await pool.query(
-        `INSERT INTO users(id,username,password_hash,display_name,role,school_id,learner_id,grade)
-         VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,
-        [user.id, user.username, passwordHash, user.display_name, user.role, user.school_id, user.learner_id, user.grade],
+        `INSERT INTO users(id,username,password_hash,display_name,role,school_id,organization_id,learner_id,grade)
+         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [user.id, user.username, passwordHash, user.display_name, user.role, user.school_id, user.organization_id, user.learner_id, user.grade],
       );
 
       const session = await issueSession(user);
@@ -342,6 +358,9 @@ function createApp({ pool, config = configFromEnv() }) {
       if (req.user.schoolId && req.user.schoolId !== input.schoolId) {
         return res.status(403).json({ error: 'school_scope_violation' });
       }
+      const schoolResult = await pool.query('SELECT id, organization_id FROM schools WHERE id = $1', [input.schoolId]);
+      if (schoolResult.rowCount === 0) return res.status(400).json({ error: 'unknown_school' });
+      const organizationId = schoolResult.rows[0].organization_id;
       const existing = await pool.query('SELECT 1 FROM users WHERE username = $1', [input.username]);
       if (existing.rowCount) return res.status(409).json({ error: 'username_taken' });
 
@@ -357,19 +376,178 @@ function createApp({ pool, config = configFromEnv() }) {
         display_name: input.displayName,
         role: input.role,
         school_id: input.schoolId,
+        organization_id: organizationId,
         learner_id: learnerId,
         grade: input.grade || null,
       };
       const passwordHash = await bcrypt.hash(input.password, 12);
 
       await pool.query(
-        `INSERT INTO users(id,username,password_hash,display_name,role,school_id,learner_id,grade)
-         VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,
-        [user.id,user.username,passwordHash,user.display_name,user.role,user.school_id,user.learner_id,user.grade],
+        `INSERT INTO users(id,username,password_hash,display_name,role,school_id,organization_id,learner_id,grade)
+         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [user.id,user.username,passwordHash,user.display_name,user.role,user.school_id,user.organization_id,user.learner_id,user.grade],
       );
 
       await audit(pool, req.user.sub, 'admin_user_provisioned', { role: input.role, schoolId: input.schoolId });
       res.status(201).json({ user: publicUser(user) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+
+  app.get('/v1/admin/billing/plans', authenticate, requireRoles('admin'), async (_req, res, next) => {
+    try {
+      const result = await pool.query(
+        `SELECT code, name, description, interval, price_cents, currency, learner_limit
+         FROM subscription_plans
+         WHERE active = TRUE
+         ORDER BY price_cents, learner_limit`,
+      );
+      res.json({ plans: result.rows });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get('/v1/admin/billing/organization', authenticate, requireRoles('admin'), async (req, res, next) => {
+    try {
+      if (!req.user.organizationId) return res.status(403).json({ error: 'organization_scope_missing' });
+
+      const organization = await pool.query(
+        'SELECT id,name,type,billing_email,subscription_status,plan_code,learner_limit FROM organizations WHERE id = $1',
+        [req.user.organizationId],
+      );
+      if (organization.rowCount === 0) return res.status(404).json({ error: 'organization_not_found' });
+
+      const subscription = await pool.query(
+        `SELECT s.id,s.plan_code,s.status,s.started_at,s.current_period_end,
+                s.external_customer_id,s.external_subscription_id,
+                p.name AS plan_name,p.price_cents,p.currency,p.learner_limit
+         FROM subscriptions s
+         JOIN subscription_plans p ON p.code = s.plan_code
+         WHERE s.organization_id = $1
+         ORDER BY s.created_at DESC
+         LIMIT 1`,
+        [req.user.organizationId],
+      );
+
+      const licenses = await pool.query(
+        `SELECT COALESCE(SUM(quantity) FILTER (WHERE status = 'active'),0)::int AS active_licenses
+         FROM organization_licenses
+         WHERE organization_id = $1`,
+        [req.user.organizationId],
+      );
+
+      res.json({
+        organization: organization.rows[0],
+        subscription: subscription.rows[0] || null,
+        activeLicenses: licenses.rows[0].active_licenses,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post('/v1/admin/billing/subscription', authenticate, requireRoles('admin'), async (req, res, next) => {
+    try {
+      if (!req.user.organizationId) return res.status(403).json({ error: 'organization_scope_missing' });
+      const input = activateSubscriptionSchema.parse(req.body);
+
+      const plan = await pool.query(
+        'SELECT * FROM subscription_plans WHERE code = $1 AND active = TRUE',
+        [input.planCode],
+      );
+      if (plan.rowCount === 0) return res.status(400).json({ error: 'unknown_plan' });
+
+      const organization = await pool.query(
+        'SELECT id FROM organizations WHERE id = $1',
+        [req.user.organizationId],
+      );
+      if (organization.rowCount === 0) return res.status(404).json({ error: 'organization_not_found' });
+
+      const id = randomUUID();
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          `INSERT INTO subscriptions(
+             id,organization_id,plan_code,status,current_period_end,external_customer_id,external_subscription_id
+           ) VALUES($1,$2,$3,'active',$4,$5,$6)`,
+          [
+            id,
+            req.user.organizationId,
+            input.planCode,
+            input.periodEnd ? new Date(input.periodEnd) : null,
+            input.externalCustomerId || null,
+            input.externalSubscriptionId || null,
+          ],
+        );
+        await client.query(
+          `UPDATE organizations
+           SET subscription_status='active', plan_code=$1, learner_limit=$2
+           WHERE id=$3`,
+          [plan.rows[0].code, plan.rows[0].learner_limit, req.user.organizationId],
+        );
+        await client.query(
+          `INSERT INTO billing_events(id,organization_id,event_type,amount_cents,currency,reference,metadata)
+           VALUES($1,$2,'subscription_activated',$3,$4,$5,$6)`,
+          [
+            randomUUID(),
+            req.user.organizationId,
+            plan.rows[0].price_cents,
+            plan.rows[0].currency,
+            input.externalSubscriptionId || id,
+            JSON.stringify({ planCode: input.planCode, activatedBy: req.user.sub }),
+          ],
+        );
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+
+      await audit(pool, req.user.sub, 'subscription_activated', {
+        organizationId: req.user.organizationId,
+        planCode: input.planCode,
+      });
+      res.status(201).json({
+        subscriptionId: id,
+        status: 'active',
+        planCode: input.planCode,
+        amountCents: plan.rows[0].price_cents,
+        currency: plan.rows[0].currency,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post('/v1/admin/billing/licenses', authenticate, requireRoles('admin'), async (req, res, next) => {
+    try {
+      if (!req.user.organizationId) return res.status(403).json({ error: 'organization_scope_missing' });
+      const input = licenseSchema.parse(req.body);
+      const id = randomUUID();
+
+      await pool.query(
+        `INSERT INTO organization_licenses(id,organization_id,quantity,starts_at,ends_at,status)
+         VALUES($1,$2,$3,$4,$5,'active')`,
+        [
+          id,
+          req.user.organizationId,
+          input.quantity,
+          input.startsAt ? new Date(input.startsAt) : new Date(),
+          input.endsAt ? new Date(input.endsAt) : null,
+        ],
+      );
+
+      await audit(pool, req.user.sub, 'licenses_provisioned', {
+        organizationId: req.user.organizationId,
+        quantity: input.quantity,
+      });
+      res.status(201).json({ licenseId: id, quantity: input.quantity, status: 'active' });
     } catch (error) {
       next(error);
     }
