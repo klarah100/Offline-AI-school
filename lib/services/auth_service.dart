@@ -54,7 +54,8 @@ class AuthService {
   String get baseUrl => const String.fromEnvironment('OFFLINE_AI_API_URL', defaultValue: '');
 
   bool get isAuthenticated => _refreshToken != null;
-  bool get isConfigured => baseUrl.isNotEmpty;
+  bool get isConfigured => baseUrl.isNotEmpty &&
+      (baseUrl.startsWith('https://') || const bool.fromEnvironment('ALLOW_INSECURE_HTTP', defaultValue: false));
 
   Future<void> restore() async {
     _accessToken = await _storage.read(key: _accessKey);
