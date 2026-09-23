@@ -8,6 +8,7 @@ import 'services/database.dart';
 import 'services/sync_service.dart';
 import 'services/mastery_engine.dart';
 import 'services/teacher_insights_engine.dart';
+import 'services/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +18,7 @@ void main() async {
 class AppState extends ChangeNotifier {
   AppState(this.db);
   final AppDatabase db;
+  final AuthService auth = AuthService();
   final AdaptiveEngine adaptive = const AdaptiveEngine();
   final MasteryEngine masteryEngine = const MasteryEngine();
   final AiTutor tutor = const OfflineAiTutor();
@@ -40,6 +42,9 @@ class AppState extends ChangeNotifier {
       goals = raw.isEmpty ? [] : raw.split('|');
     }
     await refreshMastery();
+    try {
+      await auth.restore();
+    } catch (_) {}
     loading = false;
     notifyListeners();
   }
@@ -91,6 +96,12 @@ class AppState extends ChangeNotifier {
     );
     await refreshMastery(q.topicId);
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    auth.dispose();
+    super.dispose();
   }
 }
 class OfflineAISchoolApp extends StatefulWidget {
@@ -239,7 +250,8 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key, required this.state}); final AppState state;
   @override Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('OfflineAI School'), actions:[
-      IconButton(icon:const Icon(Icons.sync_rounded),onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>SyncScreen(state:state))))
+      IconButton(icon:const Icon(Icons.account_circle_rounded),tooltip:'Account',onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>AccountScreen(state:state)))),
+      IconButton(icon:const Icon(Icons.sync_rounded),tooltip:'Offline & Sync',onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>SyncScreen(state:state))))
     ]),
     body: ListView(padding:const EdgeInsets.all(20),children:[
       Text('Good afternoon, ${state.learnerName} 👋',style:const TextStyle(fontSize:27,fontWeight:FontWeight.w800)),
@@ -588,11 +600,139 @@ class _TeacherScreenState extends State<TeacherScreen> {
     );
   }
 }
+class AccountScreen extends StatefulWidget {
+  const AccountScreen({super.key, required this.state});
+  final AppState state;
+  @override
+  State<AccountScreen> createState() => _AccountScreenState();
+}
+
+class _AccountScreenState extends State<AccountScreen> {
+  final username = TextEditingController();
+  final password = TextEditingController();
+  final schoolCode = TextEditingController();
+  bool registerMode = false;
+  bool busy = false;
+  String? error;
+
+  @override
+  void dispose() {
+    username.dispose();
+    password.dispose();
+    schoolCode.dispose();
+    super.dispose();
+  }
+
+  Future<void> submit() async {
+    FocusScope.of(context).unfocus();
+    setState(() { busy = true; error = null; });
+    try {
+      if (registerMode) {
+        await widget.state.auth.register(
+          username: username.text,
+          password: password.text,
+          displayName: widget.state.learnerName,
+          grade: widget.state.grade,
+          schoolCode: schoolCode.text,
+        );
+      } else {
+        await widget.state.auth.login(username.text, password.text);
+      }
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account connected securely.')));
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = e.toString().replaceFirst('Bad state: ', ''));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> signOut() async {
+    await widget.state.auth.logout();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> deleteData() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete account data?'),
+        content: const Text('This removes the online learner account and synchronized learning records. Data stored locally on this device is not deleted by this action.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await widget.state.auth.deleteMyData();
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (mounted) setState(() => error = e.toString().replaceFirst('Bad state: ', ''));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = widget.state.auth;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Account')),
+      body: ListView(
+        padding: const EdgeInsets.all(22),
+        children: [
+          const Text('Secure account', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Text(auth.isConfigured
+              ? 'Connect your learner profile to protected synchronization.'
+              : 'This build has no production API configured yet. Core learning still works offline.'),
+          const SizedBox(height: 20),
+          if (auth.isAuthenticated) ...[
+            _Info(
+              title: auth.user == null ? 'Session stored locally' : auth.user!.displayName,
+              body: auth.user == null ? 'Connect to the internet to verify the account session.' : auth.user!.role + ' account • ' + auth.user!.username,
+              icon: Icons.verified_user_rounded,
+            ),
+            const SizedBox(height: 12),
+            FilledButton(onPressed: signOut, child: const Text('Sign out')),
+            if (auth.user?.role == 'learner') ...[
+              const SizedBox(height: 8),
+              OutlinedButton(onPressed: deleteData, child: const Text('Delete online account and data')),
+            ],
+          ] else ...[
+            TextField(controller: username, decoration: const InputDecoration(labelText: 'Username'), autocorrect: false),
+            const SizedBox(height: 14),
+            TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'Password (10+ characters)')),
+            if (registerMode) ...[
+              const SizedBox(height: 14),
+              TextField(controller: schoolCode, decoration: const InputDecoration(labelText: 'School code (optional for personal account)'), autocorrect: false),
+            ],
+            const SizedBox(height: 16),
+            if (error != null) _Info(title: 'Account message', body: error!, icon: Icons.warning_amber_rounded),
+            if (error != null) const SizedBox(height: 12),
+            FilledButton(
+              onPressed: (!auth.isConfigured || busy) ? null : submit,
+              child: Text(busy ? 'Connecting...' : (registerMode ? 'Create learner account' : 'Sign in')),
+            ),
+            TextButton(
+              onPressed: busy ? null : () => setState(() { registerMode = !registerMode; error = null; }),
+              child: Text(registerMode ? 'I already have an account' : 'Create a learner account'),
+            ),
+          ],
+          const SizedBox(height: 18),
+          const Text('Offline learning does not depend on an account. The account is used for secure synchronization and school services.', style: TextStyle(color: Color(0xFF64748B), height: 1.4)),
+        ],
+      ),
+    );
+  }
+}
 class SyncScreen extends StatefulWidget{const SyncScreen({super.key,required this.state});final AppState state;@override State<SyncScreen>createState()=>_SyncScreenState();}
 class _SyncScreenState extends State<SyncScreen>{final connectivity=ConnectivityService();int pending=0;bool online=false,busy=false;String message='Ready';
 @override void initState(){super.initState();refresh();}
 Future<void> refresh()async{online=await connectivity.isOnline();pending=await widget.state.db.pendingCount();if(mounted)setState((){});}
-Future<void> sync()async{setState(()=>busy=true);try{final n=await SyncService(database:widget.state.db,connectivity:connectivity).syncPending();message=n==0?'Nothing synchronized.':'${n} records synchronized.';}catch(_){message='Sync failed; your learning data remains on this device.';}await refresh();if(mounted)setState(()=>busy=false);}
+Future<void> sync()async{setState(()=>busy=true);try{final n=await SyncService(database:widget.state.db,connectivity:connectivity,auth:widget.state.auth).syncPending();message=n==0?'Nothing synchronized.':'${n} records synchronized.';}catch(_){message='Sync failed; your learning data remains on this device.';}await refresh();if(mounted)setState(()=>busy=false);}
 @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Offline & Sync')),body:ListView(padding:const EdgeInsets.all(22),children:[
 _Info(title:online?'Connection detected':'Offline mode',body:online?'A network is available.':'Core learning remains available without internet.',icon:online?Icons.wifi_rounded:Icons.cloud_off_rounded),
 _Metric(label:'Pending records',value:'${pending}',icon:Icons.sync_rounded),const SizedBox(height:12),
