@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-class ConnectivityService {
+class ConnectivityService implements ConnectionStatus {
   final Connectivity _connectivity = Connectivity();
   final StreamController<bool> _online = StreamController<bool>.broadcast();
 
