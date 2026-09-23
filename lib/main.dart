@@ -23,7 +23,10 @@ class AppState extends ChangeNotifier {
   String grade = 'Grade 6';
   String language = 'English';
   List<String> goals = [];
-  final Map<String, TopicMastery> masteries = {};\n  TopicMastery get mastery => masteryFor('fractions');\n  TopicMastery masteryFor(String topicId) => masteries[topicId] ?? TopicMastery(topicId: topicId, correct: 0, attempted: 0);
+  final Map<String, TopicMastery> masteries = {};
+  TopicMastery get mastery => masteryFor('fractions');
+  TopicMastery masteryFor(String topicId) =>
+      masteries[topicId] ?? TopicMastery(topicId: topicId, correct: 0, attempted: 0);
   bool loading = true;
 
   Future<void> load() async {
@@ -40,28 +43,53 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> saveProfile(String name, String selectedGrade, String selectedLanguage, List<String> selectedGoals) async {
+  Future<void> saveProfile(
+    String name,
+    String selectedGrade,
+    String selectedLanguage,
+    List<String> selectedGoals,
+  ) async {
     learnerName = name.trim().isEmpty ? 'Learner' : name.trim();
     grade = selectedGrade;
     language = selectedLanguage;
     goals = selectedGoals;
-    await db.saveLearner(name: learnerName, grade: grade, language: language, goals: goals);
+    await db.saveLearner(
+      name: learnerName,
+      grade: grade,
+      language: language,
+      goals: goals,
+    );
     notifyListeners();
   }
 
-  Future<void> refreshMastery() async {
+  Future<void> refreshMastery([String? topicId]) async {
     final learnerId = await db.learnerId();
-    final rows = await db.attemptsForTopic('fractions', learnerId: learnerId);
-    mastery = masteryEngine.fromAttempts('fractions', rows);
+    final ids = topicId == null
+        ? const ['fractions', 'decimals', 'percentages', 'matter', 'density']
+        : [topicId];
+    for (final id in ids) {
+      final rows = await db.attemptsForTopic(id, learnerId: learnerId);
+      masteries[id] = masteryEngine.fromAttempts(id, rows);
+    }
   }
 
-  Future<void> record(Question q, String answer, {String attemptType = 'practice'}) async {
-    await db.saveAttempt(questionId: q.id, topicId: q.topicId, correct: answer == q.answer, attemptType: attemptType, selectedAnswer: answer, difficulty: q.difficulty);
-    await refreshMastery();
+  Future<void> record(
+    Question q,
+    String answer, {
+    String attemptType = 'practice',
+  }) async {
+    await db.saveAttempt(
+      questionId: q.id,
+      topicId: q.topicId,
+      correct: answer == q.answer,
+      attemptType: attemptType,
+      selectedAnswer: answer,
+      difficulty: q.difficulty,
+    );
+    await refreshMastery(q.topicId);
     notifyListeners();
   }
 }
-
 class OfflineAISchoolApp extends StatefulWidget {
   const OfflineAISchoolApp({super.key});
   @override State<OfflineAISchoolApp> createState() => _OfflineAISchoolAppState();
