@@ -14,10 +14,13 @@ void main() {
     const mastery = TopicMastery(topicId: 'fractions', correct: 5, attempted: 5);
     expect(engine.recommend(mastery), contains('next'));
   });
+
+  test('selectQuestions respects requested count', () {
+    final selected = engine.selectQuestions(
+      questions,
+      const TopicMastery(topicId: 'fractions', correct: 0, attempted: 0),
+      3,
+    );
+    expect(selected.length, 3);
+  });
 }
-
-
-test('selectQuestions respects requested count', () {
-  final selected = engine.selectQuestions(questions, const TopicMastery(topicId: 'fractions', correct: 0, attempted: 0), 3);
-  expect(selected.length, 3);
-});
