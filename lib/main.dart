@@ -420,7 +420,7 @@ class ResultScreen extends StatelessWidget {
         const SizedBox(height: 12),
         Text(correct.toString() + '/' + total.toString() + ' correct', textAlign: TextAlign.center, style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800)),
         const SizedBox(height: 10),
-        Text(state.adaptive.recommend(state.mastery), textAlign: TextAlign.center),
+        Text(state.adaptive.recommend(state.masteryFor(topicId)), textAlign: TextAlign.center),
         const SizedBox(height: 24),
         FilledButton(
           onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ProgressScreen(state: state))),
