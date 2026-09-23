@@ -7,6 +7,7 @@ import 'services/connectivity_service.dart';
 import 'services/database.dart';
 import 'services/sync_service.dart';
 import 'services/mastery_engine.dart';
+import 'services/teacher_insights_engine.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -253,8 +254,8 @@ class HomeScreen extends StatelessWidget {
         onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const LabScreen()))),
       _Tool(title:'My Progress',subtitle:'Mastery and next recommendation',icon:Icons.insights_rounded,
         onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ProgressScreen(state:state)))),
-      _Tool(title:'Teacher Dashboard',subtitle:'Class learning signals',icon:Icons.school_rounded,
-        onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const TeacherScreen()))),
+      _Tool(title:'Teacher Dashboard',subtitle:'Real learner learning signals',icon:Icons.school_rounded,
+        onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>TeacherScreen(state:state)))),
     ]),
   );
 }
@@ -524,13 +525,65 @@ _Info(title:'Calculated density',body:'${density.toStringAsFixed(2)} g/cm³\nDen
 const SizedBox(height:18),const Text('Prediction: if mass stays constant and volume increases, what happens to density?')
 ]));}}
 
-class TeacherScreen extends StatelessWidget{const TeacherScreen({super.key});@override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Teacher Dashboard')),body:ListView(padding:const EdgeInsets.all(22),children:[
-const Text('Class learning signals',style:TextStyle(fontSize:29,fontWeight:FontWeight.w800)),const SizedBox(height:8),
-const Text('This prototype shows the teacher layer; real class data will come from synchronized learner records.'),
-_Metric(label:'Learners',value:'24',icon:Icons.groups_rounded),_Metric(label:'Need fractions support',value:'7',icon:Icons.priority_high_rounded),_Metric(label:'Improving',value:'15',icon:Icons.trending_up_rounded),
-_Info(title:'AI-assisted insight',body:'Several learners are struggling with adding fractions. Consider a short review before moving forward.',icon:Icons.insights_rounded)
-]));}
+class TeacherScreen extends StatefulWidget {
+  const TeacherScreen({super.key, required this.state});
+  final AppState state;
+  @override
+  State<TeacherScreen> createState() => _TeacherScreenState();
+}
 
+class _TeacherScreenState extends State<TeacherScreen> {
+  final engine = const TeacherInsightsEngine();
+  TeacherInsights? insights;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    final learnerId = await widget.state.db.learnerId();
+    final attempts = await widget.state.db.practiceAttemptsForLearner(learnerId);
+    if (mounted) setState(() => insights = engine.analyze(attempts));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final data = insights;
+    if (data == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Teacher Dashboard')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    return Scaffold(
+      appBar: AppBar(title: const Text('Teacher Dashboard')),
+      body: ListView(
+        padding: const EdgeInsets.all(22),
+        children: [
+          const Text('Learning signals', style: TextStyle(fontSize: 29, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Text('Pilot view for ' + widget.state.learnerName + '. Synchronized class aggregation will extend this layer for schools.'),
+          const SizedBox(height: 18),
+          _Metric(label: 'Practice attempts', value: data.totalAttempts.toString(), icon: Icons.quiz_rounded),
+          _Metric(label: 'Active topics', value: data.activeTopics.toString(), icon: Icons.menu_book_rounded),
+          _Metric(label: 'Topics needing support', value: data.topicsNeedingSupport.toString(), icon: Icons.priority_high_rounded),
+          const SizedBox(height: 12),
+          _Info(title: 'AI-assisted insight', body: data.headline, icon: Icons.insights_rounded),
+          const SizedBox(height: 12),
+          ...data.topics.map((topic) => Card(
+            child: ListTile(
+              title: Text(topic.topicId, style: const TextStyle(fontWeight: FontWeight.w800)),
+              subtitle: Text(topic.signal + ' • ' + topic.attempted.toString() + ' attempts'),
+              trailing: Text((topic.accuracy * 100).round().toString() + '%'),
+            ),
+          )),
+        ],
+      ),
+    );
+  }
+}
 class SyncScreen extends StatefulWidget{const SyncScreen({super.key,required this.state});final AppState state;@override State<SyncScreen>createState()=>_SyncScreenState();}
 class _SyncScreenState extends State<SyncScreen>{final connectivity=ConnectivityService();int pending=0;bool online=false,busy=false;String message='Ready';
 @override void initState(){super.initState();refresh();}
