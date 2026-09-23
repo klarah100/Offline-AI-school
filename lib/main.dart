@@ -8,7 +8,6 @@ import 'services/connectivity_service.dart';
 import 'services/database.dart';
 import 'services/sync_service.dart';
 import 'services/mastery_engine.dart';
-import 'services/teacher_insights_engine.dart';
 import 'services/auth_service.dart';
 
 void main() async {
@@ -633,7 +632,7 @@ class _TeacherScreenState extends State<TeacherScreen> {
             ),
           );
         }),
-      ],
+      ]),
     );
   }
 }
