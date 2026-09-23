@@ -69,6 +69,13 @@ function publicUser(row) {
   };
 }
 
+async function audit(pool, userId, action, metadata = {}) {
+  await pool.query(
+    'INSERT INTO audit_logs(user_id, action, metadata) VALUES($1,$2,$3)',
+    [userId || null, action, JSON.stringify(metadata)],
+  );
+}
+
 function hashToken(token) {
   return createHash('sha256').update(token).digest('hex');
 }
@@ -226,7 +233,9 @@ function createApp({ pool, config = configFromEnv() }) {
         [user.id, user.username, passwordHash, user.display_name, user.role, user.school_id, user.learner_id, user.grade],
       );
 
-      res.status(201).json(await issueSession(user));
+      const session = await issueSession(user);
+      await audit(pool, user.id, 'learner_registered', { schoolId });
+      res.status(201).json(session);
     } catch (error) {
       next(error);
     }
@@ -240,7 +249,9 @@ function createApp({ pool, config = configFromEnv() }) {
       if (!user || !(await bcrypt.compare(input.password, user.password_hash))) {
         return res.status(401).json({ error: 'invalid_credentials' });
       }
-      res.json(await issueSession(user));
+      const session = await issueSession(user);
+      await audit(pool, user.id, 'user_login', { role: user.role });
+      res.json(session);
     } catch (error) {
       next(error);
     }
@@ -265,7 +276,9 @@ function createApp({ pool, config = configFromEnv() }) {
       if (userResult.rowCount === 0) return res.status(401).json({ error: 'user_not_found' });
 
       await pool.query('UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = $1', [tokenRow.rows[0].id]);
-      res.json(await issueSession(userResult.rows[0]));
+      const nextSession = await issueSession(userResult.rows[0]);
+      await audit(pool, userResult.rows[0].id, 'token_refresh');
+      res.json(nextSession);
     } catch (error) {
       if (error instanceof jwt.JsonWebTokenError || error instanceof jwt.TokenExpiredError) {
         return res.status(401).json({ error: 'invalid_refresh_token' });
@@ -281,6 +294,7 @@ function createApp({ pool, config = configFromEnv() }) {
         'UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND token_hash = $2',
         [req.user.sub, hashToken(input.refreshToken)],
       );
+      await audit(pool, req.user.sub, 'user_logout');
       res.status(204).end();
     } catch (error) {
       next(error);
@@ -303,6 +317,7 @@ function createApp({ pool, config = configFromEnv() }) {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
+        await audit(pool, req.user.sub, 'learner_data_deletion_requested');
         await client.query('DELETE FROM refresh_tokens WHERE user_id = $1', [req.user.sub]);
         if (req.user.learnerId) {
           await client.query('DELETE FROM attempts WHERE learner_id = $1', [req.user.learnerId]);
@@ -353,6 +368,7 @@ function createApp({ pool, config = configFromEnv() }) {
         [user.id,user.username,passwordHash,user.display_name,user.role,user.school_id,user.learner_id,user.grade],
       );
 
+      await audit(pool, req.user.sub, 'admin_user_provisioned', { role: input.role, schoolId: input.schoolId });
       res.status(201).json({ user: publicUser(user) });
     } catch (error) {
       next(error);
@@ -397,6 +413,7 @@ function createApp({ pool, config = configFromEnv() }) {
           accepted += result.rowCount || 0;
         }
         await client.query('COMMIT');
+        await audit(pool, req.user.sub, 'attempts_synced', { accepted, duplicates: input.attempts.length - accepted });
         res.json({ accepted, duplicates: input.attempts.length - accepted });
       } catch (error) {
         await client.query('ROLLBACK');
