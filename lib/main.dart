@@ -23,7 +23,7 @@ class AppState extends ChangeNotifier {
   String grade = 'Grade 6';
   String language = 'English';
   List<String> goals = [];
-  TopicMastery mastery = const TopicMastery(topicId: 'fractions', correct: 0, attempted: 0);
+  final Map<String, TopicMastery> masteries = {};\n  TopicMastery get mastery => masteryFor('fractions');\n  TopicMastery masteryFor(String topicId) => masteries[topicId] ?? TopicMastery(topicId: topicId, correct: 0, attempted: 0);
   bool loading = true;
 
   Future<void> load() async {
@@ -254,7 +254,7 @@ class MathTopicsScreen extends StatelessWidget {
                 contentPadding: const EdgeInsets.all(16),
                 leading: const CircleAvatar(child: Icon(Icons.calculate_rounded)),
                 title: Text(lesson.title, style: const TextStyle(fontWeight: FontWeight.w800)),
-                subtitle: Text(lesson.objective),
+                subtitle: Text(lesson.objective + ' • ' + state.masteryFor(topicId).label),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => Navigator.push(context, MaterialPageRoute(
                   builder: (_) => LessonScreen(state: state, topicId: topicId),
@@ -413,15 +413,79 @@ const SizedBox(height:12),FilledButton.icon(onPressed:ask,icon:const Icon(Icons.
 if(answer.isNotEmpty)...[const SizedBox(height:18),_Info(title:'OfflineAI explains',body:answer,icon:Icons.psychology_rounded)]
 ]));}
 
-class ProgressScreen extends StatelessWidget{const ProgressScreen({super.key,required this.state});final AppState state;
-@override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('My Progress')),body:ListView(padding:const EdgeInsets.all(22),children:[
-const Text('Your progress',style:TextStyle(fontSize:30,fontWeight:FontWeight.w800)),const SizedBox(height:18),
-_Metric(label:'Fractions mastery',value:'${(state.mastery.score*100).round()}%',icon:Icons.track_changes_rounded),
-_Metric(label:'Questions answered',value:'${state.mastery.attempted}',icon:Icons.quiz_rounded),
-_Metric(label:'Correct answers',value:'${state.mastery.correct}',icon:Icons.check_circle_rounded),
-const SizedBox(height:12),_Info(title:'Next recommendation',body:state.adaptive.recommend(state.mastery),icon:Icons.auto_awesome_rounded)
-]));}
-
+class ProgressScreen extends StatelessWidget {
+  const ProgressScreen({super.key, required this.state});
+  final AppState state;
+  @override
+  Widget build(BuildContext context) {
+    const topics = ['fractions', 'decimals', 'percentages', 'matter', 'density'];
+    const names = {'fractions':'Fractions','decimals':'Decimals','percentages':'Percentages','matter':'Matter','density':'Density'};
+    return Scaffold(
+      appBar: AppBar(title: const Text('My Progress')),
+      body: ListView(
+        padding: const EdgeInsets.all(22),
+        children: [
+          const Text('Your progress', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 18),
+          ...topics.map((topicId) {
+            final mastery = state.masteryFor(topicId);
+            final value = mastery.attempted == 0 ? mastery.label : (mastery.score * 100).round().toString() + '%';
+            return _Metric(label: names[topicId]!, value: value, icon: topicId == 'matter' || topicId == 'density' ? Icons.science_rounded : Icons.track_changes_rounded);
+          }),
+          const SizedBox(height: 12),
+          _Info(title:'Fractions recommendation', body:state.adaptive.recommend(state.masteryFor('fractions')), icon:Icons.auto_awesome_rounded),
+          _Info(title:'Science recommendation', body:state.adaptive.recommend(state.masteryFor('density')), icon:Icons.science_rounded),
+        ],
+      ),
+    );
+  }
+}
+class ScienceTopicsScreen extends StatelessWidget {
+  const ScienceTopicsScreen({super.key, required this.state});
+  final AppState state;
+  @override
+  Widget build(BuildContext context) {
+    const topicIds = ['matter', 'density'];
+    return Scaffold(
+      appBar: AppBar(title: const Text('Grade 6 Science & Technology')),
+      body: ListView(
+        padding: const EdgeInsets.all(22),
+        children: [
+          const Text('Explore and experiment', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          const Text('Learn the concept first, then test your understanding and experiment in the virtual lab.'),
+          const SizedBox(height: 18),
+          ...topicIds.map((topicId) {
+            final lesson = lessons.firstWhere((item) => item.topicId == topicId);
+            final mastery = state.masteryFor(topicId);
+            return Card(
+              child: ListTile(
+                contentPadding: const EdgeInsets.all(16),
+                leading: const CircleAvatar(child: Icon(Icons.science_rounded)),
+                title: Text(lesson.title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                subtitle: Text(lesson.objective + ' • ' + mastery.label),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => LessonScreen(state: state, topicId: topicId),
+                )),
+              ),
+            );
+          }),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: const CircleAvatar(child: Icon(Icons.science)),
+              title: const Text('Virtual Density Lab', style: TextStyle(fontWeight: FontWeight.w800)),
+              subtitle: const Text('Change mass and volume and observe density.'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LabScreen())),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 class LabScreen extends StatefulWidget{const LabScreen({super.key});@override State<LabScreen>createState()=>_LabScreenState();}
 class _LabScreenState extends State<LabScreen>{double mass=200,volume=100;
 @override Widget build(BuildContext context){final density=mass/volume;return Scaffold(appBar:AppBar(title:const Text('Virtual Science Lab')),body:ListView(padding:const EdgeInsets.all(22),children:[
