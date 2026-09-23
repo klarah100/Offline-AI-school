@@ -202,7 +202,7 @@ class _PracticeScreenState extends State<PracticeScreen>{
   int index=0, correct=0; String? selected; bool checked=false;
   Question get q=>questions[index];
   Future<void> check()async{if(selected==null||checked)return; if(selected==q.answer)correct++;await widget.state.record(q,selected!);setState(()=>checked=true);}
-  void next(){if(index==questions.length-1){Navigator.pushReplacement(context,MaterialPageRoute(builder:(_)=>ResultScreen(state:widget.state,correct:correct)));}else{setState(()=>{index++,selected=null,checked=false});}}
+  void next(){if(index==questions.length-1){Navigator.pushReplacement(context,MaterialPageRoute(builder:(_)=>ResultScreen(state:widget.state,correct:correct)));}else{setState(() { index++; selected = null; checked = false; });}}
   @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text('Practice ${index+1}/${questions.length}')),
     body:ListView(padding:const EdgeInsets.all(22),children:[
       LinearProgressIndicator(value:(index+1)/questions.length),const SizedBox(height:28),
