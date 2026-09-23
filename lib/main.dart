@@ -1,4 +1,13 @@
 import 'package:flutter/material.dart';
+import 'services/database.dart';
+import 'services/adaptive_engine.dart';
+import 'services/ai_tutor.dart';
+import 'data/content.dart';
+
+final appDatabase = AppDatabase.instance;
+final adaptiveEngine = const AdaptiveEngine();
+final aiTutor = const OfflineAiTutor();
+TopicMastery currentMastery = const TopicMastery(topicId: 'fractions', correct: 0, attempted: 0);
 
 void main() {
   runApp(const OfflineAISchoolApp());
@@ -165,9 +174,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               )),
           const SizedBox(height: 18),
           FilledButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const HomeScreen()),
-            ),
+            onPressed: () async {
+              await appDatabase.saveLearner(name: nameController.text.trim().isEmpty ? 'Learner' : nameController.text.trim(), grade: level, language: language);
+              if (!context.mounted) return;
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HomeScreen()));
+            },
             child: const Padding(
               padding: EdgeInsets.symmetric(vertical: 14),
               child: Text('Continue'),
@@ -192,20 +203,20 @@ class HomeScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
-          const Text('Good afternoon 👋', style: TextStyle(fontSize: 27, fontWeight: FontWeight.w800)),
+          const Text('Good afternoon, learner 👋', style: TextStyle(fontSize: 27, fontWeight: FontWeight.w800)),
           const SizedBox(height: 6),
           const Text('Ready to keep learning?'),
           const SizedBox(height: 24),
           _SectionCard(
             title: 'Continue Learning',
-            subtitle: 'Mathematics • Fractions',
-            progress: 0.6,
+            subtitle: 'Mathematics • Fractions • ' + currentMastery.label,
+            progress: currentMastery.score,
             onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FractionsScreen())),
           ),
           const SizedBox(height: 14),
           const Text('Your subjects', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
-          _SubjectCard(icon: Icons.calculate_rounded, title: 'Mathematics', subtitle: 'Fractions • 60% mastery'),
+          _SubjectCard(icon: Icons.calculate_rounded, title: 'Mathematics', subtitle: 'Fractions • ' + (currentMastery.score * 100).round().toString() + '% mastery'),
           _SubjectCard(icon: Icons.science_rounded, title: 'Science & Technology', subtitle: 'Ready to explore'),
           _SubjectCard(icon: Icons.menu_book_rounded, title: 'English', subtitle: 'Coming next'),
         ],
@@ -258,6 +269,7 @@ class PracticeScreen extends StatefulWidget {
 class _PracticeScreenState extends State<PracticeScreen> {
   String? selected;
   bool checked = false;
+  bool recorded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -288,7 +300,15 @@ class _PracticeScreenState extends State<PracticeScreen> {
               child: Text('Correct! 2/5 + 1/5 = 3/5.', style: TextStyle(fontWeight: FontWeight.w800)),
             ),
           FilledButton(
-            onPressed: selected == null ? null : () => setState(() => checked = true),
+            onPressed: selected == null ? null : () async {
+              final correct = selected == '3/5';
+              if (!recorded) {
+                await appDatabase.saveAttempt(questionId: 'fractions-q1', correct: correct);
+                currentMastery = TopicMastery(topicId: 'fractions', correct: currentMastery.correct + (correct ? 1 : 0), attempted: currentMastery.attempted + 1);
+                recorded = true;
+              }
+              setState(() => checked = true);
+            },
             child: const Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Text('Check answer')),
           ),
         ],
