@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'database.dart';
 import 'connectivity_service.dart';
+import 'auth_service.dart';
 
 typedef SyncSender = Future<void> Function(List<Map<String, Object?>> attempts);
 
@@ -18,13 +19,15 @@ class SyncService {
   final ConnectionStatus connectivity;
   final SyncSender sender;
   final Duration retryDelay;
+  final AuthService? auth;
 
   SyncService({
     required this.database,
     required this.connectivity,
     SyncSender? sender,
     this.retryDelay = const Duration(milliseconds: 250),
-  }) : sender = sender ?? _defaultSender;
+    this.auth,
+  }) : sender = sender ?? (auth != null ? authSender(auth!,) : _defaultSender);
 
   static Future<void> _defaultSender(List<Map<String, Object?>> attempts) async {
     final baseUrl = const String.fromEnvironment('OFFLINE_AI_API_URL', defaultValue: '');
@@ -63,7 +66,35 @@ class SyncService {
     }
   }
 
-  Future<int> syncPending({int maxRetries = 3}) async {
+  Future<void> authSender(AuthService auth, List<Map<String, Object?>> attempts) async {
+  if (!auth.isConfigured) {
+    throw const SyncException('Sync server is not configured.');
+  }
+  final payload = attempts.map((a) => {
+    'client_id': a['client_id'],
+    'learner_id': a['learner_id'],
+    'question_id': a['question_id'],
+    'topic_id': a['topic_id'],
+    'correct': a['correct'] == 1,
+    'timestamp': a['timestamp'],
+    'attempt_type': a['attempt_type'],
+    'selected_answer': a['selected_answer'],
+    'duration_ms': a['duration_ms'],
+    'difficulty': a['difficulty'],
+  }).toList();
+
+  try {
+    final response = await auth.postAuthenticated('/v1/sync/attempts', body: {'attempts': payload});
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw SyncException('Sync server rejected the batch (' + response.statusCode.toString() + ').', statusCode: response.statusCode);
+    }
+  } catch (error) {
+    if (error is SyncException) rethrow;
+    if (error is StateError) throw SyncException(error.message);
+    throw SyncException('Sync transport failed: $error');
+  }
+}
+Future<int> syncPending({int maxRetries = 3}) async {
     if (!await connectivity.isOnline()) return 0;
     final pending = await database.pendingAttempts();
     if (pending.isEmpty) return 0;
