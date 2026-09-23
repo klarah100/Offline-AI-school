@@ -78,6 +78,7 @@ class AppState extends ChangeNotifier {
     Question q,
     String answer, {
     String attemptType = 'practice',
+    int? durationMs,
   }) async {
     await db.saveAttempt(
       questionId: q.id,
@@ -85,6 +86,7 @@ class AppState extends ChangeNotifier {
       correct: answer == q.answer,
       attemptType: attemptType,
       selectedAnswer: answer,
+      durationMs: durationMs,
       difficulty: q.difficulty,
     );
     await refreshMastery(q.topicId);
@@ -350,6 +352,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
   int correct = 0;
   String? selected;
   bool checked = false;
+  DateTime questionStarted = DateTime.now();
 
   List<Question> get topicQuestions => questions.where((q) => q.topicId == widget.topicId).toList();
   Question get q => topicQuestions[index];
@@ -357,7 +360,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
   Future<void> check() async {
     if (selected == null || checked) return;
     if (selected == q.answer) correct++;
-    await widget.state.record(q, selected!);
+    final durationMs = DateTime.now().difference(questionStarted).inMilliseconds;
+    await widget.state.record(q, selected!, durationMs: durationMs);
     setState(() => checked = true);
   }
 
@@ -367,7 +371,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
         state: widget.state, correct: correct, total: topicQuestions.length, topicId: widget.topicId,
       )));
     } else {
-      setState(() { index++; selected = null; checked = false; });
+      setState(() { index++; selected = null; checked = false; questionStarted = DateTime.now(); });
     }
   }
 
