@@ -1,5 +1,3 @@
-import '../data/content.dart';
-
 class TopicInsight {
   final String topicId;
   final int attempted;
