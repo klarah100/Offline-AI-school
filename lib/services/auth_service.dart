@@ -159,6 +159,23 @@ class AuthService {
     return _accessToken;
   }
 
+  Future<http.Response> getAuthenticated(String path) async {
+    final token = await accessToken();
+    if (token == null) throw StateError('Please sign in before loading school data.');
+    var response = await _client.get(
+      Uri.parse('$baseUrl$path'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 401 && _refreshToken != null) {
+      await _refresh();
+      response = await _client.get(
+        Uri.parse('$baseUrl$path'),
+        headers: {'Authorization': 'Bearer $_accessToken'},
+      );
+    }
+    return response;
+  }
+
   Future<http.Response> postAuthenticated(
     String path, {
     required Object body,
