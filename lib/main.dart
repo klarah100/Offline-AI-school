@@ -53,8 +53,8 @@ class AppState extends ChangeNotifier {
     mastery = TopicMastery(topicId: 'fractions', correct: correct, attempted: rows.length);
   }
 
-  Future<void> record(Question q, String answer) async {
-    await db.saveAttempt(questionId: q.id, topicId: q.topicId, correct: answer == q.answer);
+  Future<void> record(Question q, String answer, {String attemptType = 'practice'}) async {
+    await db.saveAttempt(questionId: q.id, topicId: q.topicId, correct: answer == q.answer, attemptType: attemptType);
     await refreshMastery();
     notifyListeners();
   }
@@ -162,7 +162,7 @@ class _DiagnosticScreenState extends State<DiagnosticScreen> {
   Future<void> submit() async {
     if (selected == null) return;
     if (selected == q.answer) correct++;
-    await widget.state.record(q, selected!);
+    await widget.state.record(q, selected!, attemptType: 'diagnostic');
     if (!mounted) return;
     if (index == diagnosticQuestions.length - 1) {
       await widget.state.refreshMastery();
