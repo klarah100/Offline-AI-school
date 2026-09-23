@@ -29,22 +29,13 @@ jobs:
       - name: Generate Android platform
         run: flutter create --platforms=android --org org.offlineaischool .
 
-      - name: Set Android target SDK
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('android/app/build.gradle.kts')
-          if p.exists():
-              s = p.read_text()
-              s = s.replace('targetSdk = flutter.targetSdkVersion', 'targetSdk = 36')
-              p.write_text(s)
-          p2 = Path('android/app/build.gradle')
-          if p2.exists():
-              s = p2.read_text()
-              s = s.replace('targetSdk flutter.targetSdkVersion', 'targetSdk 36')
-              p2.write_text(s)
-          PY
+      - name: Configure Android release
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: python3 tool/configure_android_release.py
 
       - name: Build Android APK
         run: flutter build apk --release
