@@ -79,6 +79,14 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<void> linkAuthenticatedLearner() async {
+    final authLearnerId = auth.user?.learnerId;
+    if (authLearnerId == null) return;
+    await db.linkLearnerId(authLearnerId);
+    await refreshMastery();
+    notifyListeners();
+  }
+
   Future<void> record(
     Question q,
     String answer, {
@@ -638,6 +646,7 @@ class _AccountScreenState extends State<AccountScreen> {
       } else {
         await widget.state.auth.login(username.text, password.text);
       }
+      await widget.state.linkAuthenticatedLearner();
       if (mounted) {
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account connected securely.')));
