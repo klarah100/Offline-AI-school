@@ -426,6 +426,38 @@ function createApp({ pool, config = configFromEnv() }) {
     }
   });
 
+
+  app.get('/v1/teacher/learners/progress', authenticate, requireRoles('teacher', 'admin'), async (req, res, next) => {
+    try {
+      if (!req.user.schoolId) return res.status(403).json({ error: 'school_scope_missing' });
+      const result = await pool.query(
+        `SELECT
+           u.learner_id,
+           u.display_name,
+           u.grade,
+           COUNT(a.id)::int AS attempts,
+           COALESCE(SUM(CASE WHEN a.correct THEN 1 ELSE 0 END),0)::int AS correct,
+           CASE
+             WHEN COUNT(a.id) = 0 THEN 0
+             ELSE ROUND(AVG(CASE WHEN a.correct THEN 1.0 ELSE 0.0 END)::numeric, 4)
+           END AS accuracy
+         FROM users u
+         LEFT JOIN attempts a
+           ON a.learner_id = u.learner_id
+          AND a.attempt_type = 'practice'
+         WHERE u.school_id = $1
+           AND u.role = 'learner'
+         GROUP BY u.learner_id, u.display_name, u.grade
+         ORDER BY u.display_name`,
+        [req.user.schoolId],
+      );
+      await audit(pool, req.user.sub, 'teacher_progress_viewed', { learnerCount: result.rows.length });
+      res.json({ learners: result.rows });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.get('/v1/learners/:id/progress', authenticate, async (req, res, next) => {
     try {
       const learnerId = req.params.id;
