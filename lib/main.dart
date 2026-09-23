@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'data/content.dart';
 import 'data/diagnostic.dart';
@@ -557,8 +558,11 @@ class TeacherScreen extends StatefulWidget {
 }
 
 class _TeacherScreenState extends State<TeacherScreen> {
-  final engine = const TeacherInsightsEngine();
-  TeacherInsights? insights;
+  List<Map<String, dynamic>> learners = [];
+  bool loading = true;
+  String? error;
+
+  bool get teacherAccess => widget.state.auth.user?.role == 'teacher' || widget.state.auth.user?.role == 'admin';
 
   @override
   void initState() {
@@ -567,44 +571,69 @@ class _TeacherScreenState extends State<TeacherScreen> {
   }
 
   Future<void> load() async {
-    final learnerId = await widget.state.db.learnerId();
-    final attempts = await widget.state.db.practiceAttemptsForLearner(learnerId);
-    if (mounted) setState(() => insights = engine.analyze(attempts));
+    if (!teacherAccess) {
+      setState(() => loading = false);
+      return;
+    }
+    try {
+      final response = await widget.state.auth.getAuthenticated('/v1/teacher/learners/progress');
+      if (response.statusCode != 200) {
+        throw StateError('Unable to load school learning data.');
+      }
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      learners = (body['learners'] as List<dynamic>)
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+    } catch (e) {
+      error = e.toString().replaceFirst('Bad state: ', '');
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final data = insights;
-    if (data == null) {
+    if (!teacherAccess) {
       return Scaffold(
         appBar: AppBar(title: const Text('Teacher Dashboard')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: ListView(padding: const EdgeInsets.all(22), children: [
+          _Info(title: 'Teacher account required', body: 'Sign in with a teacher or school administrator account to view school learning data.', icon: Icons.lock_rounded),
+        ]),
       );
     }
+    if (loading) {
+      return Scaffold(appBar: AppBar(title: const Text('Teacher Dashboard')), body: const Center(child: CircularProgressIndicator()));
+    }
+    if (error != null) {
+      return Scaffold(appBar: AppBar(title: const Text('Teacher Dashboard')), body: ListView(padding: const EdgeInsets.all(22), children: [
+        _Info(title: 'Unable to load school data', body: error!, icon: Icons.warning_amber_rounded),
+        FilledButton(onPressed: () { setState(() { loading = true; error = null; }); load(); }, child: const Text('Retry')),
+      ]));
+    }
+
+    final totalAttempts = learners.fold<int>(0, (sum, learner) => sum + ((learner['attempts'] as num?)?.toInt() ?? 0));
     return Scaffold(
       appBar: AppBar(title: const Text('Teacher Dashboard')),
-      body: ListView(
-        padding: const EdgeInsets.all(22),
-        children: [
-          const Text('Learning signals', style: TextStyle(fontSize: 29, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          Text('Pilot view for ' + widget.state.learnerName + '. Synchronized class aggregation will extend this layer for schools.'),
-          const SizedBox(height: 18),
-          _Metric(label: 'Practice attempts', value: data.totalAttempts.toString(), icon: Icons.quiz_rounded),
-          _Metric(label: 'Active topics', value: data.activeTopics.toString(), icon: Icons.menu_book_rounded),
-          _Metric(label: 'Topics needing support', value: data.topicsNeedingSupport.toString(), icon: Icons.priority_high_rounded),
-          const SizedBox(height: 12),
-          _Info(title: 'AI-assisted insight', body: data.headline, icon: Icons.insights_rounded),
-          const SizedBox(height: 12),
-          ...data.topics.map((topic) => Card(
+      body: ListView(padding: const EdgeInsets.all(22), children: [
+        const Text('School learning overview', style: TextStyle(fontSize: 29, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8),
+        const Text('Only learners attached to your authenticated school are shown.'),
+        const SizedBox(height: 18),
+        _Metric(label: 'Learners', value: learners.length.toString(), icon: Icons.people_alt_rounded),
+        _Metric(label: 'Practice attempts', value: totalAttempts.toString(), icon: Icons.quiz_rounded),
+        const SizedBox(height: 12),
+        ...learners.map((learner) {
+          final attempts = (learner['attempts'] as num?)?.toInt() ?? 0;
+          final accuracy = (learner['accuracy'] as num?)?.toDouble() ?? 0;
+          return Card(
             child: ListTile(
-              title: Text(topic.topicId, style: const TextStyle(fontWeight: FontWeight.w800)),
-              subtitle: Text(topic.signal + ' • ' + topic.attempted.toString() + ' attempts'),
-              trailing: Text((topic.accuracy * 100).round().toString() + '%'),
+              title: Text(learner['display_name']?.toString() ?? 'Learner', style: const TextStyle(fontWeight: FontWeight.w800)),
+              subtitle: Text((learner['grade']?.toString() ?? 'Level') + ' • ' + attempts.toString() + ' practice attempts'),
+              trailing: Text((accuracy * 100).round().toString() + '%', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
             ),
-          )),
-        ],
-      ),
+          );
+        }),
+      ],
     );
   }
 }
