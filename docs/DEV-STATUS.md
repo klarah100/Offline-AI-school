@@ -24,6 +24,14 @@ Building the functional MVP for a school pilot.
 ## Current engineering gate
 The latest main commit is currently being verified by GitHub Actions. Earlier failures were traced to stale commits and patch-order issues. Treat the build as unverified until the current run completes successfully.
 
+## Newly completed in this pass
+- Per-topic mastery state across the Grade 6 MVP content set.
+- Evidence-aware offline tutor with topic context.
+- Retry-safe synchronization with permanent-error handling.
+- Question-level duration capture for practice analytics.
+- Teacher insights engine and regression tests.
+- Pilot specification with measurable access, engagement, learning, and teacher-usefulness metrics.
+
 ## Known next milestones
 1. Verify latest CI fully passes.
 2. Add stronger mastery/misconception tracking.
