@@ -328,7 +328,7 @@ class LessonScreen extends StatelessWidget {
             label: const Text('Start 5-question practice'),
           ),
           OutlinedButton.icon(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TutorScreen(state: state))),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TutorScreen(state: state, topicId: topicId))),
             icon: const Icon(Icons.psychology_rounded),
             label: const Text('Ask OfflineAI'),
           ),
