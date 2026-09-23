@@ -217,8 +217,8 @@ class HomeScreen extends StatelessWidget {
       _Card(title:'Continue Learning',subtitle:'Mathematics • Fractions • ${state.mastery.label}',progress:state.mastery.score,
         onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>LessonScreen(state:state)))),
       const SizedBox(height:18),
-      _Tool(title:'Mathematics',subtitle:'Fractions • ${(state.mastery.score*100).round()}% mastery',icon:Icons.calculate_rounded,
-        onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>LessonScreen(state:state)))),
+      _Tool(title:'Mathematics',subtitle:'Fractions • Decimals • Percentages',icon:Icons.calculate_rounded,
+        onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>MathTopicsScreen(state:state)))),
       _Tool(title:'Ask OfflineAI',subtitle:'Get an explanation without internet',icon:Icons.psychology_rounded,
         onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>TutorScreen(state:state)))),
       _Tool(title:'Virtual Science Lab',subtitle:'Experiment with density',icon:Icons.science_rounded,
@@ -231,55 +231,176 @@ class HomeScreen extends StatelessWidget {
   );
 }
 
+class MathTopicsScreen extends StatelessWidget {
+  const MathTopicsScreen({super.key, required this.state});
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    const topicIds = ['fractions', 'decimals', 'percentages'];
+    return Scaffold(
+      appBar: AppBar(title: const Text('Grade 6 Mathematics')),
+      body: ListView(
+        padding: const EdgeInsets.all(22),
+        children: [
+          const Text('Choose a topic', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          const Text('Your learning path will adapt as OfflineAI sees more evidence of your understanding.'),
+          const SizedBox(height: 18),
+          ...topicIds.map((topicId) {
+            final lesson = lessons.firstWhere((item) => item.topicId == topicId);
+            return Card(
+              child: ListTile(
+                contentPadding: const EdgeInsets.all(16),
+                leading: const CircleAvatar(child: Icon(Icons.calculate_rounded)),
+                title: Text(lesson.title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                subtitle: Text(lesson.objective),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => LessonScreen(state: state, topicId: topicId),
+                )),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
 class LessonScreen extends StatelessWidget {
-  const LessonScreen({super.key,required this.state}); final AppState state;
-  @override Widget build(BuildContext context){final l=lessons.first;return Scaffold(
-    appBar:AppBar(title:const Text('Fractions')),
-    body:ListView(padding:const EdgeInsets.all(22),children:[
-      Text(l.title,style:const TextStyle(fontSize:30,fontWeight:FontWeight.w800)),
-      const SizedBox(height:8),Text(l.objective),
-      const SizedBox(height:20),_Info(title:'Understand',body:l.explanation,icon:Icons.lightbulb_rounded),
-      const SizedBox(height:12),_Info(title:'Example',body:l.example,icon:Icons.functions_rounded),
-      const SizedBox(height:20),
-      FilledButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>PracticeScreen(state:state))),
-        icon:const Icon(Icons.play_arrow_rounded),label:const Text('Start 5-question practice')),
-      OutlinedButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>TutorScreen(state:state))),
-        icon:const Icon(Icons.psychology_rounded),label:const Text('Ask OfflineAI')),
-    ]));}
+  const LessonScreen({super.key, required this.state, required this.topicId});
+  final AppState state;
+  final String topicId;
+
+  @override
+  Widget build(BuildContext context) {
+    final lesson = lessons.firstWhere((item) => item.topicId == topicId);
+    return Scaffold(
+      appBar: AppBar(title: Text(lesson.title)),
+      body: ListView(
+        padding: const EdgeInsets.all(22),
+        children: [
+          Text(lesson.title, style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Text(lesson.objective),
+          const SizedBox(height: 20),
+          _Info(title: 'Understand', body: lesson.explanation, icon: Icons.lightbulb_rounded),
+          const SizedBox(height: 12),
+          _Info(title: 'Example', body: lesson.example, icon: Icons.functions_rounded),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => PracticeScreen(state: state, topicId: topicId),
+            )),
+            icon: const Icon(Icons.play_arrow_rounded),
+            label: const Text('Start 5-question practice'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TutorScreen(state: state))),
+            icon: const Icon(Icons.psychology_rounded),
+            label: const Text('Ask OfflineAI'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class PracticeScreen extends StatefulWidget {
-  const PracticeScreen({super.key,required this.state}); final AppState state;
-  @override State<PracticeScreen> createState()=>_PracticeScreenState();
-}
-class _PracticeScreenState extends State<PracticeScreen>{
-  int index=0, correct=0; String? selected; bool checked=false;
-  Question get q=>questions[index];
-  Future<void> check()async{if(selected==null||checked)return; if(selected==q.answer)correct++;await widget.state.record(q,selected!);setState(()=>checked=true);}
-  void next(){if(index==questions.length-1){Navigator.pushReplacement(context,MaterialPageRoute(builder:(_)=>ResultScreen(state:widget.state,correct:correct)));}else{setState(() { index++; selected = null; checked = false; });}}
-  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text('Practice ${index+1}/${questions.length}')),
-    body:ListView(padding:const EdgeInsets.all(22),children:[
-      LinearProgressIndicator(value:(index+1)/questions.length),const SizedBox(height:28),
-      Text(q.prompt,style:const TextStyle(fontSize:28,fontWeight:FontWeight.w800)),const SizedBox(height:20),
-      ...q.options.map((o)=>Padding(padding:const EdgeInsets.only(bottom:10),child:OutlinedButton(
-        onPressed:checked?null:()=>setState(()=>selected=o),style:OutlinedButton.styleFrom(alignment:Alignment.centerLeft,padding:const EdgeInsets.all(18)),
-        child:Text(o)))),
-      if(checked)_Feedback(correct:selected==q.answer,text:q.explanation),
-      FilledButton(onPressed:selected==null?null:(checked?next:check),child:Text(checked?(index==questions.length-1?'See results':'Next question'):'Check answer')),
-    ]));
+  const PracticeScreen({super.key, required this.state, required this.topicId});
+  final AppState state;
+  final String topicId;
+
+  @override
+  State<PracticeScreen> createState() => _PracticeScreenState();
 }
 
-class ResultScreen extends StatelessWidget{
-  const ResultScreen({super.key,required this.state,required this.correct});final AppState state;final int correct;
-  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Practice complete')),body:ListView(padding:const EdgeInsets.all(24),children:[
-    const Icon(Icons.celebration_rounded,size:64),const SizedBox(height:12),
-    Text('${correct}/${questions.length} correct',textAlign:TextAlign.center,style:const TextStyle(fontSize:34,fontWeight:FontWeight.w800)),
-    const SizedBox(height:10),Text(state.adaptive.recommend(state.mastery),textAlign:TextAlign.center),
-    const SizedBox(height:24),FilledButton(onPressed:()=>Navigator.pushReplacement(context,MaterialPageRoute(builder:(_)=>ProgressScreen(state:state))),child:const Text('View progress')),
-    OutlinedButton(onPressed:()=>Navigator.popUntil(context,(r)=>r.isFirst),child:const Text('Back to home')),
-  ]));
+class _PracticeScreenState extends State<PracticeScreen> {
+  int index = 0;
+  int correct = 0;
+  String? selected;
+  bool checked = false;
+
+  List<Question> get topicQuestions => questions.where((q) => q.topicId == widget.topicId).toList();
+  Question get q => topicQuestions[index];
+
+  Future<void> check() async {
+    if (selected == null || checked) return;
+    if (selected == q.answer) correct++;
+    await widget.state.record(q, selected!);
+    setState(() => checked = true);
+  }
+
+  void next() {
+    if (index == topicQuestions.length - 1) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ResultScreen(
+        state: widget.state, correct: correct, total: topicQuestions.length, topicId: widget.topicId,
+      )));
+    } else {
+      setState(() { index++; selected = null; checked = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text('Practice ' + (index + 1).toString() + '/' + topicQuestions.length.toString())),
+    body: ListView(
+      padding: const EdgeInsets.all(22),
+      children: [
+        LinearProgressIndicator(value: (index + 1) / topicQuestions.length),
+        const SizedBox(height: 28),
+        Text(q.prompt, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 20),
+        ...q.options.map((option) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: OutlinedButton(
+            onPressed: checked ? null : () => setState(() => selected = option),
+            style: OutlinedButton.styleFrom(alignment: Alignment.centerLeft, padding: const EdgeInsets.all(18)),
+            child: Text(option),
+          ),
+        )),
+        if (checked) _Feedback(correct: selected == q.answer, text: q.explanation),
+        FilledButton(
+          onPressed: selected == null ? null : (checked ? next : check),
+          child: Text(checked ? (index == topicQuestions.length - 1 ? 'See results' : 'Next question') : 'Check answer'),
+        ),
+      ],
+    ),
+  );
 }
 
+class ResultScreen extends StatelessWidget {
+  const ResultScreen({super.key, required this.state, required this.correct, required this.total, required this.topicId});
+  final AppState state;
+  final int correct;
+  final int total;
+  final String topicId;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Practice complete')),
+    body: ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        const Icon(Icons.celebration_rounded, size: 64),
+        const SizedBox(height: 12),
+        Text(correct.toString() + '/' + total.toString() + ' correct', textAlign: TextAlign.center, style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 10),
+        Text(state.adaptive.recommend(state.mastery), textAlign: TextAlign.center),
+        const SizedBox(height: 24),
+        FilledButton(
+          onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ProgressScreen(state: state))),
+          child: const Text('View progress'),
+        ),
+        OutlinedButton(
+          onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
+          child: const Text('Back to home'),
+        ),
+      ],
+    ),
+  );
+}
 class TutorScreen extends StatefulWidget{const TutorScreen({super.key,required this.state});final AppState state;@override State<TutorScreen>createState()=>_TutorScreenState();}
 class _TutorScreenState extends State<TutorScreen>{final c=TextEditingController(text:'Explain fractions to me');String answer='';
 @override void dispose(){c.dispose();super.dispose();}
