@@ -33,3 +33,4 @@ class AppDatabase {
   Future<int> pendingCount() async=>(((await (await database).rawQuery('SELECT COUNT(*) AS count FROM attempts WHERE synced = 0')).first['count']) as int?)??0;
   Future<void> markAttemptsSynced(Iterable<int> ids) async {final db=await database;final batch=db.batch();for(final id in ids)batch.update('attempts',{'synced':1},where:'id = ?',whereArgs:[id]);await batch.commit(noResult:true);}
   Future<void> clearForTests() async { final root=await getDatabasesPath(); final path=join(root,'offline_ai_school.db'); await _db?.close(); _db=null; await deleteDatabase(path); }
+}
