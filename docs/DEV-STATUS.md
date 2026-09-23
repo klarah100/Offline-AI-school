@@ -22,14 +22,14 @@ Building the functional MVP for a school pilot.
 - CI workflow with Flutter analyze/test.
 
 ## Current engineering gate
-CI has been repeatedly triggered while fixes land. The repository should only be treated as green after the latest run for the current main commit completes successfully.
+The latest main commit is currently being verified by GitHub Actions. Earlier failures were traced to stale commits and patch-order issues. Treat the build as unverified until the current run completes successfully.
 
 ## Known next milestones
 1. Verify latest CI fully passes.
 2. Add stronger mastery/misconception tracking.
 3. Make curriculum progress learner-specific across multiple topics.
 4. Improve adaptive question selection using topic history and difficulty.
-5. Build a real Science & Technology learning flow and richer density simulation.
+5. Build a richer Science & Technology learning flow and density investigation.
 6. Strengthen the offline AI tutor with curriculum-aware explanations and guardrails.
 7. Connect the teacher dashboard to synchronized learner data instead of demo values.
 8. Add robust sync retry/backoff, duplicate reporting, and production authentication.
