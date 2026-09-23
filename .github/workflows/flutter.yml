@@ -62,7 +62,14 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # Integration tests require a connected target device; device testing is a release gate.
+
+      - name: Android emulator smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: Pixel_2
+          script: flutter test integration_test/app_test.dart
 
   api:
     runs-on: ubuntu-latest
