@@ -1,6 +1,5 @@
 import 'dart:convert';import 'package:http/http.dart' as http';import 'database.dart';import 'connectivity_service.dart';
 typedef SyncSender=Future<void> Function(List<Map<String,Object?>> attempts);
-abstract class ConnectionStatus { Future<bool> isOnline(); }
 class SyncService{
  final AppDatabase database;final ConnectionStatus connectivity;final SyncSender sender;
  SyncService({required this.database,required this.connectivity,SyncSender? sender}):sender=sender??_defaultSender;
