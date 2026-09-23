@@ -1,51 +1,75 @@
 # OfflineAI School — Development Status
 
 ## Current milestone
-Building the functional MVP for a school pilot.
 
-## Completed
-- Figma MVP designed across the core learner, teacher, lab, and sync flows.
+**Production hardening / release-candidate stage**
+
+## Implemented
+
+### Learner app
+- Figma MVP across core learner, teacher, lab and sync flows.
 - Flutter application shell and learner onboarding.
+- Five-question diagnostic assessment.
+- Grade 6 Mathematics: Fractions, Decimals, Percentages.
+- Grade 6 Science & Technology: Matter, Density.
 - Local SQLite persistence.
-- Learner identity stored with learning attempts.
-- Diagnostic vs practice attempt separation.
-- Offline pending-attempt queue.
-- Connectivity abstraction.
-- HTTP synchronization backend.
-- Idempotent server storage using client IDs.
-- Curriculum prerequisite engine.
-- Adaptive recommendation engine.
-- Evidence-aware mastery engine using recency, difficulty, consistency, recent accuracy, and evidence confidence.
-- Grade 6 Mathematics content: Fractions, Decimals, Percentages.
-- Grade 6 Science and Technology content: Matter, Density.
-- Regression tests for adaptive logic, curriculum logic, database persistence, diagnostics, and synchronization.
-- CI workflow with Flutter analyze/test.
+- Learner identity linked to learning attempts.
+- Diagnostic/practice separation.
+- Durable offline sync queue.
+- Adaptive recommendations and evidence-aware mastery.
+- Topic-specific offline tutor.
+- Question-level duration capture.
+- Density virtual laboratory.
+- School-scoped teacher learning overview.
+- Secure learner account screen.
+- Secure session storage with token refresh.
+- Online learner account/data deletion.
 
-## Current engineering gate
-The latest main commit is currently being verified by GitHub Actions. Earlier failures were traced to stale commits and patch-order issues. Treat the build as unverified until the current run completes successfully.
+### Backend
+- PostgreSQL schema and migrations.
+- JWT access tokens.
+- Rotating server-tracked refresh tokens.
+- Role-based authorization.
+- School-scoped teacher/admin access.
+- Authenticated learner-only synchronization.
+- Duplicate-safe client IDs.
+- Request validation and body limits.
+- Helmet security headers.
+- Browser CORS allowlist.
+- Rate limiting baseline.
+- Security audit event storage.
+- Health/readiness endpoint.
+- Admin user provisioning.
+- Local Docker/PostgreSQL environment.
+- Production container definition.
 
-## Newly completed in this pass
-- Per-topic mastery state across the Grade 6 MVP content set.
-- Evidence-aware offline tutor with topic context.
-- Retry-safe synchronization with permanent-error handling.
-- Question-level duration capture for practice analytics.
-- Teacher insights engine and regression tests.
-- Pilot specification with measurable access, engagement, learning, and teacher-usefulness metrics.
+### Engineering
+- Flutter analysis gate.
+- Automated app regression tests.
+- API integration tests against PostgreSQL.
+- Android release APK build.
+- Android App Bundle build.
+- Android emulator onboarding smoke test.
+- Dependabot configuration.
+- CodeQL configuration.
+- Production deployment/security/privacy documentation.
 
-## Known next milestones
-1. Verify latest CI fully passes.
-2. Add stronger mastery/misconception tracking.
-3. Make curriculum progress learner-specific across multiple topics.
-4. Improve adaptive question selection using topic history and difficulty.
-5. Build a richer Science & Technology learning flow and density investigation.
-6. Strengthen the offline AI tutor with curriculum-aware explanations and guardrails.
-7. Connect the teacher dashboard to synchronized learner data instead of demo values.
-8. Add robust sync retry/backoff, duplicate reporting, and production authentication.
-9. Package a pilot build for a Zimbabwean school.
-10. Prepare pilot metrics, demo, pitch deck, and commercial outreach.
+## Remaining production acceptance gates
 
-## Product principle
-A student's potential should not depend on their internet connection.
+- Configure and deploy the real production API with HTTPS.
+- Configure managed PostgreSQL, encrypted backups and restore drills.
+- Configure production release signing and Play App Signing.
+- Complete the physical-device test matrix, including low-end Android and unstable connectivity.
+- Complete external security review.
+- Configure crash/error/uptime monitoring.
+- Validate Zimbabwe curriculum content with qualified educators.
+- Validate safeguarding, consent, data retention and final privacy documents.
+- Replace the pilot teacher view with the complete school/class/learner workflow.
+- Add stronger misconception detection and intervention tracking.
+- Add broader curriculum and language coverage.
+- Add production AI gateway and model governance.
+- Complete staged school pilot and operational acceptance.
 
-## Repository
-https://github.com/klarah100/Offline-AI-school
+## Rule
+
+Do not call the product publicly production-ready until the unchecked acceptance gates are closed with evidence.
