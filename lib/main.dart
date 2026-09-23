@@ -243,7 +243,7 @@ class HomeScreen extends StatelessWidget {
       const SizedBox(height:6), const Text('Keep building your understanding, one concept at a time.'),
       const SizedBox(height:20),
       _Card(title:'Continue Learning',subtitle:'Mathematics • Fractions • ${state.mastery.label}',progress:state.mastery.score,
-        onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>LessonScreen(state:state)))),
+        onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>LessonScreen(state:state,topicId:'fractions')))),
       const SizedBox(height:18),
       _Tool(title:'Mathematics',subtitle:'Fractions • Decimals • Percentages',icon:Icons.calculate_rounded,
         onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>MathTopicsScreen(state:state)))),
