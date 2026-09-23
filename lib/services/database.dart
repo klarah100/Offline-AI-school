@@ -22,6 +22,8 @@ class AppDatabase {
         }
         if (oldVersion < 3) {
           await db.execute('ALTER TABLE learners ADD COLUMN learner_id TEXT');
+          await db.execute("UPDATE learners SET learner_id = 'legacy_' || id WHERE learner_id IS NULL");
+          await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_learners_learner_id ON learners(learner_id)');
           await db.execute('ALTER TABLE attempts ADD COLUMN attempt_type TEXT NOT NULL DEFAULT "practice"');
         }
       },
