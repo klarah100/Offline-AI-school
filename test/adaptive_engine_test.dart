@@ -23,8 +23,6 @@ void main() {
     );
     expect(selected.length, 3);
   });
-}
-
 
   test('high accuracy with weak evidence does not force hard progression', () {
     final mastery = TopicMastery(
@@ -37,3 +35,4 @@ void main() {
     expect(engine.nextDifficulty(mastery), 2);
     expect(engine.recommend(mastery), contains('evidence'));
   });
+}
