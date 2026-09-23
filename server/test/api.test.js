@@ -24,7 +24,12 @@ async function seedSchema() {
     'utf8',
   );
   await pool.query(schema);
-  await pool.query('TRUNCATE refresh_tokens, attempts, users, schools CASCADE');
+  await pool.query('TRUNCATE refresh_tokens, attempts, users, subscriptions, organization_licenses, billing_events, audit_logs, schools, organizations CASCADE');
+  await pool.query(
+    `INSERT INTO subscription_plans(code,name,description,interval,price_cents,currency,learner_limit,active)
+     VALUES('school_small','Small School','Up to 100 learners','annual',30000,'USD',100,TRUE)
+     ON CONFLICT (code) DO UPDATE SET active=TRUE`,
+  );
 }
 
 test.before(seedSchema);
@@ -130,4 +135,54 @@ test('protected endpoints reject missing credentials', async () => {
     .send({ attempts: [] });
   assert.equal(response.status, 401);
   assert.equal(response.body.error, 'authentication_required');
+});
+
+
+test('admin billing endpoints expose plans and organization billing state', async () => {
+  const organizationId = 'org_test_001';
+  const schoolId = 'school_test_001';
+
+  await pool.query(
+    `INSERT INTO organizations(id,name,type,billing_email)
+     VALUES($1,'Pilot Organisation','school_group','billing@example.test')`,
+    [organizationId],
+  );
+  await pool.query(
+    `INSERT INTO schools(id,code,name,organization_id)
+     VALUES($1,'PILOT','Pilot School',$2)`,
+    [schoolId, organizationId],
+  );
+
+  const passwordHash = await require('bcryptjs').hash('AdminPass123!', 12);
+  const adminId = 'admin_test_001';
+  await pool.query(
+    `INSERT INTO users(id,username,password_hash,display_name,role,school_id,organization_id)
+     VALUES($1,'pilot.admin',$2,'Pilot Admin','admin',$3,$4)`,
+    [adminId, passwordHash, schoolId, organizationId],
+  );
+
+  const login = await request(app)
+    .post('/v1/auth/login')
+    .send({ username: 'pilot.admin', password: 'AdminPass123!' });
+  assert.equal(login.status, 200);
+
+  const plans = await request(app)
+    .get('/v1/admin/billing/plans')
+    .set('Authorization', 'Bearer ' + login.body.accessToken);
+  assert.equal(plans.status, 200);
+  assert.equal(plans.body.plans[0].code, 'school_small');
+
+  const billing = await request(app)
+    .post('/v1/admin/billing/subscription')
+    .set('Authorization', 'Bearer ' + login.body.accessToken)
+    .send({ planCode: 'school_small' });
+  assert.equal(billing.status, 201);
+  assert.equal(billing.body.status, 'active');
+
+  const state = await request(app)
+    .get('/v1/admin/billing/organization')
+    .set('Authorization', 'Bearer ' + login.body.accessToken);
+  assert.equal(state.status, 200);
+  assert.equal(state.body.organization.plan_code, 'school_small');
+  assert.equal(state.body.organization.subscription_status, 'active');
 });
