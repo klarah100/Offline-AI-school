@@ -53,7 +53,7 @@ class AuthService {
 
   String get baseUrl => const String.fromEnvironment('OFFLINE_AI_API_URL', defaultValue: '');
 
-  bool get isAuthenticated => user != null && _refreshToken != null;
+  bool get isAuthenticated => _refreshToken != null;
   bool get isConfigured => baseUrl.isNotEmpty;
 
   Future<void> restore() async {
@@ -64,15 +64,19 @@ class AuthService {
 
     if (_accessToken == null && _refreshToken == null) return;
 
-    final response = await _authorizedGet('/v1/auth/me');
-    if (response.statusCode == 200) {
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      user = AuthUser.fromJson(body['user'] as Map<String, dynamic>);
-      return;
-    }
-
-    if (response.statusCode == 401) {
-      await logout();
+    try {
+      final response = await _authorizedGet('/v1/auth/me');
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        user = AuthUser.fromJson(body['user'] as Map<String, dynamic>);
+        return;
+      }
+      if (response.statusCode == 401) {
+        await logout();
+      }
+    } catch (_) {
+      // Preserve the local session during an offline launch. The next authenticated request
+      // will refresh or reject the session when connectivity is available.
     }
   }
 
@@ -106,6 +110,22 @@ class AuthService {
       }),
     );
     await _acceptSession(response);
+  }
+
+  Future<void> deleteMyData() async {
+    if (!isConfigured || !isAuthenticated) {
+      throw StateError('No authenticated online account is available.');
+    }
+    final token = await accessToken();
+    if (token == null) throw StateError('Please sign in again.');
+    final response = await _client.delete(
+      Uri.parse('$baseUrl/v1/auth/me/data'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw StateError('data_deletion_failed');
+    }
+    await logout();
   }
 
   Future<void> logout() async {
