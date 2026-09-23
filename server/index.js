@@ -128,7 +128,7 @@ function createApp({ pool, config = configFromEnv() }) {
   app.use(helmet());
   app.use(cors({
     origin(origin, callback) {
-      if (!origin || config.allowedOrigins.length === 0 || config.allowedOrigins.includes(origin)) {
+      if (!origin || config.allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
       return callback(new Error('Origin not allowed'));
@@ -292,6 +292,30 @@ function createApp({ pool, config = configFromEnv() }) {
       const result = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.sub]);
       if (result.rowCount === 0) return res.status(401).json({ error: 'user_not_found' });
       res.json({ user: publicUser(result.rows[0]) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+
+  app.delete('/v1/auth/me/data', authenticate, requireRoles('learner'), async (req, res, next) => {
+    try {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('DELETE FROM refresh_tokens WHERE user_id = $1', [req.user.sub]);
+        if (req.user.learnerId) {
+          await client.query('DELETE FROM attempts WHERE learner_id = $1', [req.user.learnerId]);
+        }
+        await client.query('DELETE FROM users WHERE id = $1', [req.user.sub]);
+        await client.query('COMMIT');
+        return res.status(204).end();
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
     } catch (error) {
       next(error);
     }
