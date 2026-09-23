@@ -35,6 +35,8 @@ void main() {
     final practice = await db.attemptsForTopic('fractions');
     expect(practice, hasLength(1));
     expect(practice.single['question_id'], 'q-practice');
+    expect(practice.single['learner_id'], isNotNull);
+    expect(practice.single['difficulty'], 1);
 
     final pending = await db.pendingAttempts();
     expect(pending, hasLength(2));
