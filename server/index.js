@@ -225,10 +225,12 @@ function createApp({ pool, config = configFromEnv() }) {
       if (existing.rowCount) return res.status(409).json({ error: 'username_taken' });
 
       let schoolId = null;
+      let organizationId = null;
       if (input.schoolCode) {
         const school = await pool.query('SELECT id, organization_id FROM schools WHERE code = $1', [input.schoolCode]);
         if (school.rowCount === 0) return res.status(400).json({ error: 'unknown_school' });
         schoolId = school.rows[0].id;
+        organizationId = school.rows[0].organization_id || null;
       }
 
       const user = {
