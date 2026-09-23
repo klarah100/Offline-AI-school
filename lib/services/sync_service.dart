@@ -1,28 +1,24 @@
-enum ConnectionState { offline, online }
-
-class SyncItem {
-  final String id;
-  final Map<String, Object?> payload;
-
-  const SyncItem({required this.id, required this.payload});
-}
+import 'database.dart';
+import 'connectivity_service.dart';
 
 class SyncService {
-  final List<SyncItem> _queue = [];
+  final AppDatabase database;
+  final ConnectivityService connectivity;
 
-  ConnectionState connection = ConnectionState.offline;
+  SyncService({
+    required this.database,
+    required this.connectivity,
+  });
 
-  List<SyncItem> get pending => List.unmodifiable(_queue);
+  Future<int> syncPending() async {
+    if (!await connectivity.isOnline()) return 0;
 
-  void queue(String id, Map<String, Object?> payload) {
-    _queue.add(SyncItem(id: id, payload: payload));
-  }
+    final pending = await database.pendingAttempts();
+    if (pending.isEmpty) return 0;
 
-  Future<int> sync() async {
-    if (connection == ConnectionState.offline) return 0;
-
-    final count = _queue.length;
-    _queue.clear();
-    return count;
+    // Provider-agnostic MVP transport. Replace this section with the
+    // authenticated backend adapter before marking records synced.
+    await database.markAttemptsSynced();
+    return pending.length;
   }
 }
