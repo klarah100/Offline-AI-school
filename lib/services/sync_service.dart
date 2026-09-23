@@ -1,4 +1,7 @@
-import 'dart:convert';import 'package:http/http.dart' as http';import 'database.dart';import 'connectivity_service.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'database.dart';
+import 'connectivity_service.dart';
 typedef SyncSender=Future<void> Function(List<Map<String,Object?>> attempts);
 class SyncService{
  final AppDatabase database;final ConnectionStatus connectivity;final SyncSender sender;
