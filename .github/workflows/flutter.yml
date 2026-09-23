@@ -1,4 +1,4 @@
-name: Flutter CI
+name: OfflineAI School CI
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  flutter:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,15 +29,72 @@ jobs:
       - name: Generate Android platform
         run: flutter create --platforms=android --org org.offlineaischool .
 
+      - name: Set Android target SDK
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/build.gradle.kts')
+          if p.exists():
+              s = p.read_text()
+              s = s.replace('targetSdk = flutter.targetSdkVersion', 'targetSdk = 36')
+              p.write_text(s)
+          p2 = Path('android/app/build.gradle')
+          if p2.exists():
+              s = p2.read_text()
+              s = s.replace('targetSdk flutter.targetSdkVersion', 'targetSdk 36')
+              p2.write_text(s)
+          PY
+
       - name: Build Android APK
         run: flutter build apk --release
 
-      - name: Upload Android APK
+      - name: Build Android App Bundle
+        run: flutter build appbundle --release
+
+      - name: Upload Android release artifacts
         uses: actions/upload-artifact@v4
         with:
           name: offline-ai-school-android
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 14
 
-      # Integration tests require a connected target device; unit/widget tests run above.
+      # Integration tests require a connected target device; device testing is a release gate.
+
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: offlineai
+          POSTGRES_USER: offlineai
+          POSTGRES_PASSWORD: offlineai-test-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U offlineai -d offlineai"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package.json
+      - name: Install API dependencies
+        run: npm install
+      - name: Static syntax check
+        run: npm run check
+      - name: API integration tests
+        env:
+          DATABASE_URL: postgres://offlineai:offlineai-test-password@localhost:5432/offlineai
+        run: npm test
