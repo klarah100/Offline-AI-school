@@ -158,55 +158,61 @@ ALTER TABLE organization_licenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE billing_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS deny_anon_organizations ON organizations;
-DROP POLICY IF EXISTS deny_auth_organizations ON organizations;
-CREATE POLICY deny_anon_organizations ON organizations FOR ALL TO anon USING (false) WITH CHECK (false);
-CREATE POLICY deny_auth_organizations ON organizations FOR ALL TO authenticated USING (false) WITH CHECK (false);
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon')
+     AND EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    EXECUTE 'DROP POLICY IF EXISTS deny_anon_organizations ON organizations';
+    EXECUTE 'DROP POLICY IF EXISTS deny_auth_organizations ON organizations';
+    EXECUTE 'CREATE POLICY deny_anon_organizations ON organizations FOR ALL TO anon USING (false) WITH CHECK (false)';
+    EXECUTE 'CREATE POLICY deny_auth_organizations ON organizations FOR ALL TO authenticated USING (false) WITH CHECK (false)';
 
-DROP POLICY IF EXISTS deny_anon_schools ON schools;
-DROP POLICY IF EXISTS deny_auth_schools ON schools;
-CREATE POLICY deny_anon_schools ON schools FOR ALL TO anon USING (false) WITH CHECK (false);
-CREATE POLICY deny_auth_schools ON schools FOR ALL TO authenticated USING (false) WITH CHECK (false);
+    EXECUTE 'DROP POLICY IF EXISTS deny_anon_schools ON schools';
+    EXECUTE 'DROP POLICY IF EXISTS deny_auth_schools ON schools';
+    EXECUTE 'CREATE POLICY deny_anon_schools ON schools FOR ALL TO anon USING (false) WITH CHECK (false)';
+    EXECUTE 'CREATE POLICY deny_auth_schools ON schools FOR ALL TO authenticated USING (false) WITH CHECK (false)';
 
-DROP POLICY IF EXISTS deny_anon_users ON users;
-DROP POLICY IF EXISTS deny_auth_users ON users;
-CREATE POLICY deny_anon_users ON users FOR ALL TO anon USING (false) WITH CHECK (false);
-CREATE POLICY deny_auth_users ON users FOR ALL TO authenticated USING (false) WITH CHECK (false);
+    EXECUTE 'DROP POLICY IF EXISTS deny_anon_users ON users';
+    EXECUTE 'DROP POLICY IF EXISTS deny_auth_users ON users';
+    EXECUTE 'CREATE POLICY deny_anon_users ON users FOR ALL TO anon USING (false) WITH CHECK (false)';
+    EXECUTE 'CREATE POLICY deny_auth_users ON users FOR ALL TO authenticated USING (false) WITH CHECK (false)';
 
-DROP POLICY IF EXISTS deny_anon_refresh_tokens ON refresh_tokens;
-DROP POLICY IF EXISTS deny_auth_refresh_tokens ON refresh_tokens;
-CREATE POLICY deny_anon_refresh_tokens ON refresh_tokens FOR ALL TO anon USING (false) WITH CHECK (false);
-CREATE POLICY deny_auth_refresh_tokens ON refresh_tokens FOR ALL TO authenticated USING (false) WITH CHECK (false);
+    EXECUTE 'DROP POLICY IF EXISTS deny_anon_refresh_tokens ON refresh_tokens';
+    EXECUTE 'DROP POLICY IF EXISTS deny_auth_refresh_tokens ON refresh_tokens';
+    EXECUTE 'CREATE POLICY deny_anon_refresh_tokens ON refresh_tokens FOR ALL TO anon USING (false) WITH CHECK (false)';
+    EXECUTE 'CREATE POLICY deny_auth_refresh_tokens ON refresh_tokens FOR ALL TO authenticated USING (false) WITH CHECK (false)';
 
-DROP POLICY IF EXISTS deny_anon_attempts ON attempts;
-DROP POLICY IF EXISTS deny_auth_attempts ON attempts;
-CREATE POLICY deny_anon_attempts ON attempts FOR ALL TO anon USING (false) WITH CHECK (false);
-CREATE POLICY deny_auth_attempts ON attempts FOR ALL TO authenticated USING (false) WITH CHECK (false);
+    EXECUTE 'DROP POLICY IF EXISTS deny_anon_attempts ON attempts';
+    EXECUTE 'DROP POLICY IF EXISTS deny_auth_attempts ON attempts';
+    EXECUTE 'CREATE POLICY deny_anon_attempts ON attempts FOR ALL TO anon USING (false) WITH CHECK (false)';
+    EXECUTE 'CREATE POLICY deny_auth_attempts ON attempts FOR ALL TO authenticated USING (false) WITH CHECK (false)';
 
-DROP POLICY IF EXISTS deny_anon_subscription_plans ON subscription_plans;
-DROP POLICY IF EXISTS deny_auth_subscription_plans ON subscription_plans;
-CREATE POLICY deny_anon_subscription_plans ON subscription_plans FOR ALL TO anon USING (false) WITH CHECK (false);
-CREATE POLICY deny_auth_subscription_plans ON subscription_plans FOR ALL TO authenticated USING (false) WITH CHECK (false);
+    EXECUTE 'DROP POLICY IF EXISTS deny_anon_subscription_plans ON subscription_plans';
+    EXECUTE 'DROP POLICY IF EXISTS deny_auth_subscription_plans ON subscription_plans';
+    EXECUTE 'CREATE POLICY deny_anon_subscription_plans ON subscription_plans FOR ALL TO anon USING (false) WITH CHECK (false)';
+    EXECUTE 'CREATE POLICY deny_auth_subscription_plans ON subscription_plans FOR ALL TO authenticated USING (false) WITH CHECK (false)';
 
-DROP POLICY IF EXISTS deny_anon_subscriptions ON subscriptions;
-DROP POLICY IF EXISTS deny_auth_subscriptions ON subscriptions;
-CREATE POLICY deny_anon_subscriptions ON subscriptions FOR ALL TO anon USING (false) WITH CHECK (false);
-CREATE POLICY deny_auth_subscriptions ON subscriptions FOR ALL TO authenticated USING (false) WITH CHECK (false);
+    EXECUTE 'DROP POLICY IF EXISTS deny_anon_subscriptions ON subscriptions';
+    EXECUTE 'DROP POLICY IF EXISTS deny_auth_subscriptions ON subscriptions';
+    EXECUTE 'CREATE POLICY deny_anon_subscriptions ON subscriptions FOR ALL TO anon USING (false) WITH CHECK (false)';
+    EXECUTE 'CREATE POLICY deny_auth_subscriptions ON subscriptions FOR ALL TO authenticated USING (false) WITH CHECK (false)';
 
-DROP POLICY IF EXISTS deny_anon_organization_licenses ON organization_licenses;
-DROP POLICY IF EXISTS deny_auth_organization_licenses ON organization_licenses;
-CREATE POLICY deny_anon_organization_licenses ON organization_licenses FOR ALL TO anon USING (false) WITH CHECK (false);
-CREATE POLICY deny_auth_organization_licenses ON organization_licenses FOR ALL TO authenticated USING (false) WITH CHECK (false);
+    EXECUTE 'DROP POLICY IF EXISTS deny_anon_organization_licenses ON organization_licenses';
+    EXECUTE 'DROP POLICY IF EXISTS deny_auth_organization_licenses ON organization_licenses';
+    EXECUTE 'CREATE POLICY deny_anon_organization_licenses ON organization_licenses FOR ALL TO anon USING (false) WITH CHECK (false)';
+    EXECUTE 'CREATE POLICY deny_auth_organization_licenses ON organization_licenses FOR ALL TO authenticated USING (false) WITH CHECK (false)';
 
-DROP POLICY IF EXISTS deny_anon_billing_events ON billing_events;
-DROP POLICY IF EXISTS deny_auth_billing_events ON billing_events;
-CREATE POLICY deny_anon_billing_events ON billing_events FOR ALL TO anon USING (false) WITH CHECK (false);
-CREATE POLICY deny_auth_billing_events ON billing_events FOR ALL TO authenticated USING (false) WITH CHECK (false);
+    EXECUTE 'DROP POLICY IF EXISTS deny_anon_billing_events ON billing_events';
+    EXECUTE 'DROP POLICY IF EXISTS deny_auth_billing_events ON billing_events';
+    EXECUTE 'CREATE POLICY deny_anon_billing_events ON billing_events FOR ALL TO anon USING (false) WITH CHECK (false)';
+    EXECUTE 'CREATE POLICY deny_auth_billing_events ON billing_events FOR ALL TO authenticated USING (false) WITH CHECK (false)';
 
-DROP POLICY IF EXISTS deny_anon_audit_logs ON audit_logs;
-DROP POLICY IF EXISTS deny_auth_audit_logs ON audit_logs;
-CREATE POLICY deny_anon_audit_logs ON audit_logs FOR ALL TO anon USING (false) WITH CHECK (false);
-CREATE POLICY deny_auth_audit_logs ON audit_logs FOR ALL TO authenticated USING (false) WITH CHECK (false);
+    EXECUTE 'DROP POLICY IF EXISTS deny_anon_audit_logs ON audit_logs';
+    EXECUTE 'DROP POLICY IF EXISTS deny_auth_audit_logs ON audit_logs';
+    EXECUTE 'CREATE POLICY deny_anon_audit_logs ON audit_logs FOR ALL TO anon USING (false) WITH CHECK (false)';
+    EXECUTE 'CREATE POLICY deny_auth_audit_logs ON audit_logs FOR ALL TO authenticated USING (false) WITH CHECK (false)';
+  END IF;
+END $$;
 
 INSERT INTO subscription_plans(code,name,description,interval,price_cents,currency,learner_limit)
 VALUES
