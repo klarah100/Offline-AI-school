@@ -15,3 +15,9 @@ void main() {
     expect(engine.recommend(mastery), contains('next'));
   });
 }
+
+
+test('selectQuestions respects requested count', () {
+  final selected = engine.selectQuestions(questions, const TopicMastery(topicId: 'fractions', correct: 0, attempted: 0), 3);
+  expect(selected.length, 3);
+});
