@@ -42,3 +42,20 @@ void main() {
     expect(pending, hasLength(2));
   });
 }
+
+
+test('links local attempts to an authenticated learner identity', () async {
+  final db = AppDatabase.instance;
+  await db.clearForTests();
+  await db.saveLearner(name: 'Local Learner', grade: 'Grade 6', language: 'English');
+  await db.saveAttempt(questionId: 'q1', topicId: 'fractions', correct: true);
+
+  final localId = await db.learnerId();
+  await db.linkLearnerId('learner_server_123456');
+
+  expect(await db.learnerId(), 'learner_server_123456');
+  final attempts = await db.attemptsForTopic('fractions', learnerId: 'learner_server_123456');
+  expect(attempts, hasLength(1));
+  expect(attempts.single['learner_id'], 'learner_server_123456');
+  expect(localId, isNot('learner_server_123456'));
+});
