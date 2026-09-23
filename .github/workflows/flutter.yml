@@ -88,8 +88,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: server/package.json
       - name: Install API dependencies
         run: npm install
       - name: Static syntax check
