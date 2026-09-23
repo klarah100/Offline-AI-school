@@ -12,7 +12,7 @@ class AppDatabase {
     final root = await getDatabasesPath();
     _db = await openDatabase(
       join(root, 'offline_ai_school.db'),
-      version: 3,
+      version: 4,
       onCreate: (db, version) async {
         await _createSchema(db);
       },
@@ -25,6 +25,9 @@ class AppDatabase {
           await db.execute("UPDATE learners SET learner_id = 'legacy_' || id WHERE learner_id IS NULL");
           await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_learners_learner_id ON learners(learner_id)');
           await db.execute('ALTER TABLE attempts ADD COLUMN attempt_type TEXT NOT NULL DEFAULT "practice"');
+        }
+        if (oldVersion < 4) {
+          await db.execute('CREATE INDEX IF NOT EXISTS idx_attempts_topic_type ON attempts(topic_id, attempt_type)');
         }
       },
     );
